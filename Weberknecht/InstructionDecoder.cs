@@ -81,7 +81,7 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, MetadataReader m
         HandleKind.TypeDefinition when allowed.HasFlag(EntityType.Type) => MetadataUtil.ResolveType(_metadata, _res, (TypeDefinitionHandle)handle),
         HandleKind.TypeReference when allowed.HasFlag(EntityType.Type) => MetadataUtil.ResolveType(_metadata, _res, (TypeReferenceHandle)handle),
         HandleKind.TypeSpecification when allowed.HasFlag(EntityType.Type) => _metadata.GetTypeSpecification((TypeSpecificationHandle)handle), // TODO: Generic context
-        HandleKind.FieldDefinition when allowed.HasFlag(EntityType.Field) => _metadata.GetFieldDefinition((FieldDefinitionHandle)handle), // TODO: Fields
+        HandleKind.FieldDefinition when allowed.HasFlag(EntityType.Field) => MetadataUtil.ResolveField(_metadata, _res, (FieldDefinitionHandle)handle),
         HandleKind.MemberReference => GetMember((MemberReferenceHandle)handle, allowed),
         _ => throw new NotImplementedException($"{handle.Kind}")
     };

@@ -1,9 +1,11 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Weberknecht;
 
@@ -43,16 +45,44 @@ internal static class MetadataUtil
     public static Type ResolveType(MetadataReader reader, TypeResolver res, TypeDefinitionHandle handle)
         => ResolveType(reader, res, reader.GetTypeDefinition(handle));
 
-    public static Type ResolveType(MetadataReader reader, TypeResolver res, TypeDefinition typeDef)
-        => res.GetType(reader.GetString(typeDef.Namespace), reader.GetString(typeDef.Name)) ?? throw new NullReferenceException();
+    public static Type ResolveType(MetadataReader reader, TypeResolver res, [NotNull] TypeDefinition typeDef)
+    {
+        var decl = typeDef.GetDeclaringType();
+        if (decl.IsNil)
+            return res.GetType(reader.GetString(typeDef.Namespace), reader.GetString(typeDef.Name)) ?? throw new NullReferenceException();
+        var nestedName = new Stack<string>();
+        while (true)
+        {
+            nestedName.Push(reader.GetString(typeDef.Name));
+            if (decl.IsNil)
+                break;
+            typeDef = reader.GetTypeDefinition(decl);
+            decl = typeDef.GetDeclaringType();
+        }
+        return res.GetType(reader.GetString(typeDef.Namespace), string.Join('+', nestedName)) ?? throw new NullReferenceException();
+    }
 
     public static Type ResolveType(MetadataReader reader, TypeResolver res, TypeReferenceHandle handle)
         => ResolveType(reader, res, reader.GetTypeReference(handle));
 
     public static Type ResolveType(MetadataReader reader, TypeResolver res, TypeReference typeRef)
     {
-        // TODO: respect resolution scope
-        return res.GetType(reader.GetString(typeRef.Namespace), reader.GetString(typeRef.Name)) ?? throw new NullReferenceException();
+        if (typeRef.ResolutionScope.IsNil) // TODO: What other resolution scopes exist?
+            return res.GetType(reader.GetString(typeRef.Namespace), reader.GetString(typeRef.Name)) ?? throw new NullReferenceException();
+
+        // Nested
+        var nestedName = new Stack<string>();
+        while (true)
+        {
+            nestedName.Push(reader.GetString(typeRef.Name));
+
+            if (typeRef.ResolutionScope.Kind != HandleKind.TypeReference)
+                break;
+
+            typeRef = reader.GetTypeReference((TypeReferenceHandle)typeRef.ResolutionScope);
+        }
+
+        return res.GetType(reader.GetString(typeRef.Namespace), string.Join('+', nestedName)) ?? throw new NullReferenceException();
     }
 
     public static Type ResolveType(MetadataReader reader, TypeResolver res, TypeSpecificationHandle handle, GenericContext ctx)
@@ -139,6 +169,25 @@ internal static class MetadataUtil
         return method;
     }
 
+    public static FieldInfo ResolveField(MetadataReader reader, TypeResolver res, FieldDefinitionHandle handle)
+        => ResolveField(reader, res, reader.GetFieldDefinition(handle));
+
+    public static FieldInfo ResolveField(MetadataReader reader, TypeResolver res, FieldDefinition fieldDef)
+    {
+        var typeDef = reader.GetTypeDefinition(fieldDef.GetDeclaringType());
+        var type = ResolveType(reader, res, typeDef);
+
+        var ctx = new GenericContext(type.GetGenericArguments(), 0);
+        var fieldType = fieldDef.DecodeSignature(new SignatureTypeProvider(res), ctx);
+        var field = type.GetField(reader.GetString(fieldDef.Name))
+            ?? throw new NullReferenceException();
+
+        if (field.FieldType != fieldType)
+            throw new Exception();
+
+        return field;
+    }
+
     private static (SignatureHeader, int) ReadMethodHeader(MetadataReader reader, BlobHandle signatureHandle)
     {
         var blobReader = reader.GetBlobReader(signatureHandle);
@@ -183,7 +232,7 @@ internal static class MetadataUtil
     public readonly struct GenericContext
     {
         private readonly Type[] _typeParams;
-        private readonly Type[] _methodParams = [];
+        private readonly Type[] _methodParams;
 
         public GenericContext(Type[] typeParams, int mvarCount)
         {
@@ -285,20 +334,10 @@ internal static class MetadataUtil
         }
 
         public Type GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
-        {
-            var def = reader.GetTypeDefinition(handle);
-            string ns = reader.GetString(def.Namespace);
-            string name = reader.GetString(def.Name);
-            return _res.GetType(ns, name) ?? throw new Exception();
-        }
+            => ResolveType(reader, _res, handle);
 
         public Type GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind)
-        {
-            var tr = reader.GetTypeReference(handle);
-            string ns = reader.GetString(tr.Namespace);
-            string name = reader.GetString(tr.Name);
-            return _res.GetType(ns, name) ?? throw new Exception();
-        }
+            => ResolveType(reader, _res, handle);
 
         public Type GetTypeFromSpecification(MetadataReader reader, GenericContext genericContext, TypeSpecificationHandle handle, byte rawTypeKind)
         {
