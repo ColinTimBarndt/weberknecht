@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Weberknecht/Weberknecht.csproj" />
+  <Project Path="Experiments/Experiments.csproj" />
+</Solution>

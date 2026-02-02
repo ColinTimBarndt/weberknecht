@@ -1,0 +1,102 @@
+using System.Collections;
+using System.Diagnostics;
+using System.Reflection.Emit;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
+
+namespace Weberknecht;
+
+internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, MetadataReader metadata, TypeResolver res) : IEnumerator<Instruction>
+{
+
+    private int _index = 0;
+    private readonly ReadOnlySpan<byte> _data = data;
+    private readonly MetadataReader _metadata = metadata;
+    private readonly TypeResolver _res = res;
+
+    readonly object? IEnumerator.Current => Current;
+
+    public Instruction Current { get; private set; }
+
+    public int CurrentAddress { get; private set; }
+
+    public bool MoveNext()
+    {
+        if (_index >= _data.Length) return false;
+        CurrentAddress = _index;
+        int code = _data[_index++];
+        if (code == 0xFE)
+        {
+            if (_index >= _data.Length)
+                throw new InvalidDataException();
+            code <<= 8;
+            code |= _data[_index++];
+        }
+        var op = OpCodeTable.Decode((short)code);
+        var operandType = op.OperandType;
+        var immSize = operandType.Size;
+        if (_index + immSize > _data.Length)
+            throw new InvalidDataException();
+        var immData = _data.Slice(_index, immSize);
+        _index += immSize;
+        //Console.WriteLine(operandType);
+        object? immediate = operandType switch
+        {
+            OperandType.InlineBrTarget => BitConverter.ToInt32(immData) + _index,
+            OperandType.InlineField => GetTok(GetHandle(immData), MemberType.Field),
+            OperandType.InlineMethod => GetTok(GetHandle(immData), MemberType.Method),
+            OperandType.InlineType => _metadata.GetTypeDefinition((TypeDefinitionHandle)GetHandle(immData)),
+            OperandType.InlineTok => GetTok(GetHandle(immData), default), // TODO: Member type?
+            OperandType.InlineSwitch or
+            OperandType.InlineI => BitConverter.ToInt32(immData),
+            OperandType.InlineSig => _metadata.GetStandaloneSignature((StandaloneSignatureHandle)GetHandle(immData)),
+            OperandType.InlineString => _metadata.GetUserString((UserStringHandle)GetHandle(immData)),
+            OperandType.InlineI8 => BitConverter.ToInt64(immData),
+            OperandType.InlineNone => null,
+            OperandType.InlineR => BitConverter.ToDouble(immData),
+            OperandType.InlineVar => BitConverter.ToUInt16(immData),
+            OperandType.ShortInlineBrTarget => (int)(sbyte)immData[0] + _index,
+            OperandType.ShortInlineI => (int)(sbyte)immData[0],
+            OperandType.ShortInlineR => BitConverter.ToSingle(immData),
+            OperandType.ShortInlineVar => (ushort)immData[0],
+            _ => throw new UnreachableException(),
+        };
+        Current = new(op, immediate);
+
+        return true;
+    }
+
+    private readonly Handle GetHandle(ReadOnlySpan<byte> span) => GetHandle(BitConverter.ToInt32(span));
+    private readonly Handle GetHandle(int token)
+    {
+        var handle = MetadataTokens.Handle(token);
+        //Console.WriteLine($"Handle: {handle.Kind}");
+        return handle;
+    }
+
+    private readonly object? GetTok(Handle handle, MemberType member) => handle.Kind switch
+    {
+        HandleKind.MethodDefinition => MetadataUtil.ResolveMethod(_metadata, _res, (MethodDefinitionHandle)handle),
+        HandleKind.MethodSpecification => MetadataUtil.ResolveMethod(_metadata, _res, (MethodSpecificationHandle)handle),
+        HandleKind.TypeDefinition => MetadataUtil.ResolveType(_metadata, _res, (TypeDefinitionHandle)handle),
+        HandleKind.TypeReference => MetadataUtil.ResolveType(_metadata, _res, (TypeReferenceHandle)handle),
+        HandleKind.TypeSpecification => _metadata.GetTypeSpecification((TypeSpecificationHandle)handle), // TODO: Generic context
+        HandleKind.FieldDefinition => _metadata.GetFieldDefinition((FieldDefinitionHandle)handle), // TODO: Fields
+        HandleKind.MemberReference when member is MemberType.Method => MetadataUtil.ResolveMethod(_metadata, _res, (MemberReferenceHandle)handle),
+        HandleKind.MemberReference when member is MemberType.Field => _metadata.GetMemberReference((MemberReferenceHandle)handle),
+        _ => throw new NotImplementedException($"{handle.Kind}")
+    };
+
+    public void Reset()
+    {
+        _index = 0;
+    }
+
+    public readonly void Dispose() { }
+
+    private enum MemberType
+    {
+        Method, Field
+    }
+
+}
