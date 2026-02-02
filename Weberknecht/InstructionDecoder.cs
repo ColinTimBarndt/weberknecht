@@ -95,7 +95,7 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, MetadataReader m
         {
             //case SignatureKind.MethodSpecification when allowed.HasFlag(EntityType.Method):
             SignatureKind.Method when allowed.HasFlag(EntityType.Method) => MetadataUtil.ResolveMethod(_metadata, _res, member),
-            SignatureKind.Field when allowed.HasFlag(EntityType.Field) => member, // TODO: resolve
+            SignatureKind.Field when allowed.HasFlag(EntityType.Field) => MetadataUtil.ResolveField(_metadata, _res, member),
             _ => throw new InvalidDataException(),
         };
     }

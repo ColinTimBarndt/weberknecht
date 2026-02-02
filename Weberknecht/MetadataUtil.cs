@@ -169,6 +169,24 @@ internal static class MetadataUtil
         return method;
     }
 
+    public static FieldInfo ResolveField(MetadataReader reader, TypeResolver res, MemberReferenceHandle handle)
+        => ResolveField(reader, res, reader.GetMemberReference(handle));
+
+    public static FieldInfo ResolveField(MetadataReader reader, TypeResolver res, MemberReference memberRef)
+    {
+        var type = ResolveType(reader, res, memberRef.Parent);
+
+        var ctx = new GenericContext(type.GetGenericArguments(), 0);
+        var fieldType = memberRef.DecodeFieldSignature(new SignatureTypeProvider(res), ctx);
+        var field = type.GetField(reader.GetString(memberRef.Name))
+            ?? throw new NullReferenceException();
+
+        if (field.FieldType != fieldType)
+            throw new Exception();
+
+        return field;
+    }
+
     public static FieldInfo ResolveField(MetadataReader reader, TypeResolver res, FieldDefinitionHandle handle)
         => ResolveField(reader, res, reader.GetFieldDefinition(handle));
 
