@@ -40,11 +40,13 @@ public sealed class TypeResolver
 
     public Type? GetType(string fullName)
     {
+        //Console.WriteLine($"GetType(\"{fullName}\")");
         foreach (var asm in sources)
         {
             var found = asm.GetType(fullName);
             if (found != null)
                 return found;
+            //Console.WriteLine($"  Available: {string.Join(", ", asm.DefinedTypes)}");
         }
         return null;
     }
