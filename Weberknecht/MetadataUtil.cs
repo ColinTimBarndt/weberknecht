@@ -149,6 +149,12 @@ internal static class MetadataUtil
             return (header, 0);
     }
 
+    internal static SignatureKind GetSignatureKind(MetadataReader reader, BlobHandle signatureHandle)
+    {
+        var blobReader = reader.GetBlobReader(signatureHandle);
+        return blobReader.ReadSignatureHeader().Kind;
+    }
+
     public static BindingFlags GetBindingFlags(SignatureHeader header)
     {
         var flags = BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.NonPublic;

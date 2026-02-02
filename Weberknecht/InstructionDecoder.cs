@@ -43,10 +43,10 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, MetadataReader m
         object? immediate = operandType switch
         {
             OperandType.InlineBrTarget => BitConverter.ToInt32(immData) + _index,
-            OperandType.InlineField => GetTok(GetHandle(immData), MemberType.Field),
-            OperandType.InlineMethod => GetTok(GetHandle(immData), MemberType.Method),
+            OperandType.InlineField => GetTok(GetHandle(immData), EntityType.Field),
+            OperandType.InlineMethod => GetTok(GetHandle(immData), EntityType.Method),
             OperandType.InlineType => _metadata.GetTypeDefinition((TypeDefinitionHandle)GetHandle(immData)),
-            OperandType.InlineTok => GetTok(GetHandle(immData), default), // TODO: Member type?
+            OperandType.InlineTok => GetTok(GetHandle(immData), EntityType.Type | EntityType.Method | EntityType.Field),
             OperandType.InlineSwitch or
             OperandType.InlineI => BitConverter.ToInt32(immData),
             OperandType.InlineSig => _metadata.GetStandaloneSignature((StandaloneSignatureHandle)GetHandle(immData)),
@@ -74,18 +74,31 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, MetadataReader m
         return handle;
     }
 
-    private readonly object? GetTok(Handle handle, MemberType member) => handle.Kind switch
+    private readonly object GetTok(Handle handle, EntityType allowed) => handle.Kind switch
     {
-        HandleKind.MethodDefinition => MetadataUtil.ResolveMethod(_metadata, _res, (MethodDefinitionHandle)handle),
-        HandleKind.MethodSpecification => MetadataUtil.ResolveMethod(_metadata, _res, (MethodSpecificationHandle)handle),
-        HandleKind.TypeDefinition => MetadataUtil.ResolveType(_metadata, _res, (TypeDefinitionHandle)handle),
-        HandleKind.TypeReference => MetadataUtil.ResolveType(_metadata, _res, (TypeReferenceHandle)handle),
-        HandleKind.TypeSpecification => _metadata.GetTypeSpecification((TypeSpecificationHandle)handle), // TODO: Generic context
-        HandleKind.FieldDefinition => _metadata.GetFieldDefinition((FieldDefinitionHandle)handle), // TODO: Fields
-        HandleKind.MemberReference when member is MemberType.Method => MetadataUtil.ResolveMethod(_metadata, _res, (MemberReferenceHandle)handle),
-        HandleKind.MemberReference when member is MemberType.Field => _metadata.GetMemberReference((MemberReferenceHandle)handle),
+        HandleKind.MethodDefinition when allowed.HasFlag(EntityType.Method) => MetadataUtil.ResolveMethod(_metadata, _res, (MethodDefinitionHandle)handle),
+        HandleKind.MethodSpecification when allowed.HasFlag(EntityType.Method) => MetadataUtil.ResolveMethod(_metadata, _res, (MethodSpecificationHandle)handle),
+        HandleKind.TypeDefinition when allowed.HasFlag(EntityType.Type) => MetadataUtil.ResolveType(_metadata, _res, (TypeDefinitionHandle)handle),
+        HandleKind.TypeReference when allowed.HasFlag(EntityType.Type) => MetadataUtil.ResolveType(_metadata, _res, (TypeReferenceHandle)handle),
+        HandleKind.TypeSpecification when allowed.HasFlag(EntityType.Type) => _metadata.GetTypeSpecification((TypeSpecificationHandle)handle), // TODO: Generic context
+        HandleKind.FieldDefinition when allowed.HasFlag(EntityType.Field) => _metadata.GetFieldDefinition((FieldDefinitionHandle)handle), // TODO: Fields
+        HandleKind.MemberReference => GetMember((MemberReferenceHandle)handle, allowed),
         _ => throw new NotImplementedException($"{handle.Kind}")
     };
+
+    private readonly object GetMember(MemberReferenceHandle handle, EntityType allowed)
+    {
+        var member = _metadata.GetMemberReference(handle);
+        var kind = MetadataUtil.GetSignatureKind(_metadata, member.Signature);
+
+        return kind switch
+        {
+            //case SignatureKind.MethodSpecification when allowed.HasFlag(EntityType.Method):
+            SignatureKind.Method when allowed.HasFlag(EntityType.Method) => MetadataUtil.ResolveMethod(_metadata, _res, member),
+            SignatureKind.Field when allowed.HasFlag(EntityType.Field) => member, // TODO: resolve
+            _ => throw new InvalidDataException(),
+        };
+    }
 
     public void Reset()
     {
@@ -94,9 +107,12 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, MetadataReader m
 
     public readonly void Dispose() { }
 
-    private enum MemberType
+    [Flags]
+    private enum EntityType
     {
-        Method, Field
+        Type = 1,
+        Method = 2,
+        Field = 4,
     }
 
 }
