@@ -20,15 +20,15 @@ MethodReader.Read((int a) =>
 Prints (Debug build):
 
 ```txt
-  0000: nop
-  0001: ldarg.1
-  0002: ldarg.0
-  0003: ldfld "b"
-  0008: add
-  0009: call Int32 CreateInt()
-  000E: add
-  000F: stloc.0
-  0010: br.s 0012
-  0012: ldloc.0
-  0013: ret
+       nop
+       ldarg.1
+       ldarg.0
+       ldfld Int32 b
+       add
+       call Int32 CreateInt()
+       add
+       stloc.0
+       br.s L0001
+L0001: ldloc.0
+       ret
 ```
