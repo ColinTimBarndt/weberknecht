@@ -6,13 +6,12 @@ using System.Reflection.Metadata.Ecma335;
 
 namespace Weberknecht;
 
-internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, MetadataReader metadata, TypeResolver res) : IEnumerator<Instruction>
+internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContext ctx) : IEnumerator<Instruction>
 {
 
     private int _index = 0;
     private readonly ReadOnlySpan<byte> _data = data;
-    private readonly MetadataReader _metadata = metadata;
-    private readonly TypeResolver _res = res;
+    private readonly ResolutionContext _ctx = ctx;
 
     readonly object? IEnumerator.Current => Current;
 
@@ -45,12 +44,12 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, MetadataReader m
             OperandType.InlineBrTarget => BitConverter.ToInt32(immData) + _index,
             OperandType.InlineField => GetTok(GetHandle(immData), EntityType.Field),
             OperandType.InlineMethod => GetTok(GetHandle(immData), EntityType.Method),
-            OperandType.InlineType => _metadata.GetTypeDefinition((TypeDefinitionHandle)GetHandle(immData)),
+            OperandType.InlineType => _ctx.ResolveTypeHandle((TypeDefinitionHandle)GetHandle(immData)),
             OperandType.InlineTok => GetTok(GetHandle(immData), EntityType.Type | EntityType.Method | EntityType.Field),
             OperandType.InlineSwitch or
             OperandType.InlineI => BitConverter.ToInt32(immData),
-            OperandType.InlineSig => _metadata.GetStandaloneSignature((StandaloneSignatureHandle)GetHandle(immData)),
-            OperandType.InlineString => _metadata.GetUserString((UserStringHandle)GetHandle(immData)),
+            OperandType.InlineSig => _ctx.Meta.GetStandaloneSignature((StandaloneSignatureHandle)GetHandle(immData)),
+            OperandType.InlineString => _ctx.Meta.GetUserString((UserStringHandle)GetHandle(immData)),
             OperandType.InlineI8 => BitConverter.ToInt64(immData),
             OperandType.InlineNone => null,
             OperandType.InlineR => BitConverter.ToDouble(immData),
@@ -76,26 +75,26 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, MetadataReader m
 
     private readonly object GetTok(Handle handle, EntityType allowed) => handle.Kind switch
     {
-        HandleKind.MethodDefinition when allowed.HasFlag(EntityType.Method) => MetadataUtil.ResolveMethod(_metadata, _res, (MethodDefinitionHandle)handle),
-        HandleKind.MethodSpecification when allowed.HasFlag(EntityType.Method) => MetadataUtil.ResolveMethod(_metadata, _res, (MethodSpecificationHandle)handle),
-        HandleKind.TypeDefinition when allowed.HasFlag(EntityType.Type) => MetadataUtil.ResolveType(_metadata, _res, (TypeDefinitionHandle)handle),
-        HandleKind.TypeReference when allowed.HasFlag(EntityType.Type) => MetadataUtil.ResolveType(_metadata, _res, (TypeReferenceHandle)handle),
-        HandleKind.TypeSpecification when allowed.HasFlag(EntityType.Type) => _metadata.GetTypeSpecification((TypeSpecificationHandle)handle), // TODO: Generic context
-        HandleKind.FieldDefinition when allowed.HasFlag(EntityType.Field) => MetadataUtil.ResolveField(_metadata, _res, (FieldDefinitionHandle)handle),
+        HandleKind.MethodDefinition when allowed.HasFlag(EntityType.Method) => _ctx.ResolveMethodHandle((MethodDefinitionHandle)handle),
+        HandleKind.MethodSpecification when allowed.HasFlag(EntityType.Method) => _ctx.ResolveMethodHandle((MethodSpecificationHandle)handle),
+        HandleKind.TypeDefinition when allowed.HasFlag(EntityType.Type) => _ctx.ResolveTypeHandle((TypeDefinitionHandle)handle),
+        HandleKind.TypeReference when allowed.HasFlag(EntityType.Type) => _ctx.ResolveTypeHandle((TypeReferenceHandle)handle),
+        HandleKind.TypeSpecification when allowed.HasFlag(EntityType.Type) => _ctx.Meta.GetTypeSpecification((TypeSpecificationHandle)handle), // TODO: Generic context
+        HandleKind.FieldDefinition when allowed.HasFlag(EntityType.Field) => _ctx.ResolveFieldHandle((FieldDefinitionHandle)handle),
         HandleKind.MemberReference => GetMember((MemberReferenceHandle)handle, allowed),
         _ => throw new NotImplementedException($"{handle.Kind}")
     };
 
     private readonly object GetMember(MemberReferenceHandle handle, EntityType allowed)
     {
-        var member = _metadata.GetMemberReference(handle);
-        var kind = MetadataUtil.GetSignatureKind(_metadata, member.Signature);
+        var member = _ctx.Meta.GetMemberReference(handle);
+        var kind = MetadataUtil.GetSignatureKind(_ctx.Meta, member.Signature);
 
         return kind switch
         {
             //case SignatureKind.MethodSpecification when allowed.HasFlag(EntityType.Method):
-            SignatureKind.Method when allowed.HasFlag(EntityType.Method) => MetadataUtil.ResolveMethod(_metadata, _res, member),
-            SignatureKind.Field when allowed.HasFlag(EntityType.Field) => MetadataUtil.ResolveField(_metadata, _res, member),
+            SignatureKind.Method when allowed.HasFlag(EntityType.Method) => _ctx.ResolveMethod(member),
+            SignatureKind.Field when allowed.HasFlag(EntityType.Field) => _ctx.ResolveField(member),
             _ => throw new InvalidDataException(),
         };
     }

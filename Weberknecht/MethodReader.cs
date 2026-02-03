@@ -6,9 +6,9 @@ namespace Weberknecht;
 public static class MethodReader
 {
 
-    public static void Read(Delegate d) => Read(d.Method);
+    public static Method Read(Delegate d) => Read(d.Method);
 
-    public static void Read(MethodInfo method)
+    public static Method Read(MethodInfo method)
     {
         var body = method.GetMethodBody()
             ?? throw new InvalidOperationException("Method has no available body");
@@ -18,12 +18,12 @@ public static class MethodReader
         var ilBytes = body.GetILAsByteArray()
             ?? throw new InvalidOperationException("Method has no body");
 
-        var types = new TypeResolver(assembly);
+        var ctx = new ResolutionContext(method.Module, metadata);
 
         List<Instruction> instructions = [];
         Dictionary<int, int> jumpTable = [];
 
-        var il = new InstructionDecoder(ilBytes, metadata, types);
+        var il = new InstructionDecoder(ilBytes, ctx);
         while (il.MoveNext())
         {
             jumpTable.Add(il.CurrentAddress, instructions.Count);
@@ -48,10 +48,7 @@ public static class MethodReader
             instructions[i] = instr;
         }
 
-        foreach (var instr in instructions)
-        {
-            Console.WriteLine(instr);
-        }
+        return new(method.ReturnType, [.. method.GetParameters().Select(info => (Method.Parameter)info)], instructions);
     }
 
 }

@@ -15,9 +15,11 @@ public struct Instruction
         _operand = immadiate;
     }
 
-    public override readonly string ToString()
+    public override readonly string ToString() => ToString(false);
+
+    public readonly string ToString(bool label)
     {
-        var prefix = _label == 0 ? "       " : $"L{_label:X4}: ";
+        var prefix = label ? (_label == 0 ? "        " : $"L{_label:X4}:  ") : null;
         if (_operand == null)
         {
             return $"{prefix}{OpCode}";
