@@ -10,7 +10,7 @@ internal sealed partial class ResolutionContext : ISignatureTypeProvider<Type, G
 
     static ResolutionContext()
     {
-        _primitives = new Type[(Enum.GetValues<PrimitiveTypeCode>().Select(t => (int)t).Aggregate(int.Max)) + 1];
+        _primitives = new Type[Enum.GetValues<PrimitiveTypeCode>().Select(t => (int)t).Aggregate(int.Max) + 1];
         _primitives[(int)PrimitiveTypeCode.Void] = typeof(void);
         _primitives[(int)PrimitiveTypeCode.Char] = typeof(char);
         _primitives[(int)PrimitiveTypeCode.SByte] = typeof(sbyte);

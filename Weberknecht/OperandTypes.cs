@@ -8,7 +8,7 @@ internal static class OperandTypes
 
     static OperandTypes()
     {
-        _sizes = new byte[(Enum.GetValues<OperandType>().Select(t => (int)t).Aggregate(int.Max)) + 1];
+        _sizes = new byte[Enum.GetValues<OperandType>().Select(t => (int)t).Aggregate(int.Max) + 1];
         _sizes[(int)OperandType.InlineBrTarget] = 4;
         _sizes[(int)OperandType.InlineField] = 4;
         _sizes[(int)OperandType.InlineI] = 4;
