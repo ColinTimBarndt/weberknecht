@@ -1,4 +1,5 @@
 ﻿using System.Reflection.Emit;
+using System.Reflection.Metadata;
 
 namespace Weberknecht;
 
@@ -8,6 +9,7 @@ public struct Instruction
     public readonly OpCode OpCode { get; init; } = OpCodes.Nop;
     internal ushort _label = 0;
     internal object? _operand = null;
+    public SequencePoint? DebugInfo { get; set; }
 
     internal Instruction(OpCode code, object? immadiate)
     {

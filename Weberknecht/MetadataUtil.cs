@@ -1,24 +1,81 @@
+using System.Collections.Immutable;
 using System.Reflection;
 using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Weberknecht;
 
 internal static class MetadataUtil
 {
 
-    private static readonly ConditionalWeakTable<Assembly, MetadataReader?> _lookup = [];
+    private static readonly ConditionalWeakTable<Assembly, MetadataReader?> _metadata = [];
+    private static readonly ConditionalWeakTable<Assembly, MetadataReader?> _debugMetadata = [];
 
     extension(Assembly asm)
     {
         public unsafe MetadataReader? GetMetadataReader()
         {
-            return _lookup.GetOrAdd(asm, static (asm) =>
+            return _metadata.GetOrAdd(asm, static (asm) =>
             {
                 if (!asm.TryGetRawMetadata(out byte* blob, out int length))
                     return null;
                 return new MetadataReader(blob, length);
             });
+        }
+
+        public MetadataReader? GetDebugMetadataReader()
+        {
+            return _debugMetadata.GetOrAdd(asm, static (asm) =>
+            {
+                var location = asm.Location;
+                if (string.IsNullOrEmpty(location))
+                    return null;
+
+                try
+                {
+                    var data = ImmutableArray.Create(File.ReadAllBytes(Path.ChangeExtension(location, "pdb")));
+                    return MetadataReaderProvider.FromPortablePdbImage(data).GetMetadataReader();
+                }
+                catch (FileNotFoundException)
+                {
+                    return null;
+                }
+            });
+        }
+    }
+
+    extension(MethodInfo method)
+    {
+        public MethodDebugInformation GetDebugInfo()
+        {
+            var metadata = method.Module.Assembly.GetDebugMetadataReader()
+                ?? throw new InvalidOperationException("Cannot read assembly metadata");
+            var token = (MethodDefinitionHandle)MetadataTokens.Handle(method.MetadataToken);
+            return metadata.GetMethodDebugInformation(token);
+        }
+    }
+
+    extension(MetadataReader metadata)
+    {
+        public string GetDocumentName(DocumentNameBlobHandle handle)
+        {
+            // https://github.com/dotnet/runtime/blob/main/docs/design/specs/PortablePdb-Metadata.md#document-name-blob
+            var reader = metadata.GetBlobReader(handle);
+            var separator = reader.ReadChar();
+            StringBuilder str = new();
+            bool addSep = false;
+            while (reader.RemainingBytes > 0)
+            {
+                if (addSep)
+                    str.Append(separator);
+                addSep = true;
+
+                var part = metadata.GetBlobBytes(reader.ReadBlobHandle());
+                str.Append(Encoding.UTF8.GetString(part));
+            }
+            return str.ToString();
         }
     }
 

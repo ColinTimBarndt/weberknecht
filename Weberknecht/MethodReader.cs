@@ -48,7 +48,22 @@ public static class MethodReader
             instructions[i] = instr;
         }
 
-        return new(method.ReturnType, [.. method.GetParameters().Select(info => (Method.Parameter)info)], instructions);
+        var debugInfo = method.GetDebugInfo();
+        Console.WriteLine(debugInfo);
+        foreach (var point in debugInfo.GetSequencePoints())
+        {
+            if (!jumpTable.TryGetValue(point.Offset, out int index))
+                continue;
+
+            var instr = instructions[index];
+            instr.DebugInfo = point;
+            instructions[index] = instr;
+        }
+
+        return new(method.ReturnType, [.. method.GetParameters().Select(info => (Method.Parameter)info)], instructions)
+        {
+            metadata = assembly.GetDebugMetadataReader()
+        };
     }
 
 }

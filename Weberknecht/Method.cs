@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Text;
 
 namespace Weberknecht;
@@ -9,6 +10,9 @@ public class Method
     private readonly List<Parameter> _parameters;
     private readonly List<Instruction> _instructions;
     public Type ReturnType { get; }
+
+    // TODO: Temp
+    internal MetadataReader? metadata;
 
     public Method(Type returnType) : this(returnType, [], []) { }
 
@@ -53,17 +57,46 @@ public class Method
         Out,
     }
 
-    public override string ToString()
+    public override string ToString() => ToString(false);
+
+    public string ToString(bool debugInfo)
     {
         StringBuilder builder = new();
-        builder.Append(ReturnType.Name);
-        builder.Append(" Method(");
-        builder.AppendJoin(", ", _parameters);
-        builder.Append(")\n");
+        builder.Append(ReturnType.Name)
+            .Append(" Method(")
+            .AppendJoin(", ", _parameters)
+            .Append(')');
         if (_instructions.Count == 0)
-            builder.Append("        <empty>");
+            builder.Append("\n        <empty>");
         else
-            builder.AppendJoin("\n", _instructions.Select(instr => instr.ToString(true)));
+        {
+            foreach (var instr in _instructions)
+            {
+                if (debugInfo && metadata != null && instr.DebugInfo.HasValue)
+                {
+                    var seq = instr.DebugInfo.Value;
+                    if (seq.IsHidden)
+                    {
+                        builder.Append("\n  @ <hidden>");
+                        continue;
+                    }
+
+                    var name = metadata.GetDocument(seq.Document).Name;
+                    builder.Append("\n  @ ")
+                        .Append(metadata.GetDocumentName(name))
+                        .Append(':')
+                        .Append(seq.StartLine)
+                        .Append(':')
+                        .Append(seq.StartColumn)
+                        .Append(" - ")
+                        .Append(seq.EndLine)
+                        .Append(':')
+                        .Append(seq.EndColumn);
+                }
+                builder.AppendLine()
+                    .Append(instr.ToString(true));
+            }
+        }
         return builder.ToString();
     }
 
