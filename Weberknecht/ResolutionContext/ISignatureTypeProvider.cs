@@ -45,7 +45,7 @@ internal sealed partial class ResolutionContext : ISignatureTypeProvider<Type, G
     Type ISignatureTypeProvider<Type, GenericContext>
     .GetFunctionPointerType(MethodSignature<Type> signature)
     {
-        throw new NotImplementedException(); // TODO
+        throw new NotImplementedException("function pointer type"); // TODO
     }
 
     Type IConstructedTypeProvider<Type>
@@ -57,13 +57,13 @@ internal sealed partial class ResolutionContext : ISignatureTypeProvider<Type, G
     Type ISignatureTypeProvider<Type, GenericContext>
     .GetGenericMethodParameter(GenericContext genericContext, int index)
     {
-        throw new NotImplementedException(); // TODO
+        return genericContext.GetMethodParameter(index);
     }
 
     Type ISignatureTypeProvider<Type, GenericContext>
     .GetGenericTypeParameter(GenericContext genericContext, int index)
     {
-        throw new NotImplementedException(); // TODO
+        return genericContext.GetTypeParameter(index);
     }
 
     Type ISignatureTypeProvider<Type, GenericContext>

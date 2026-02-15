@@ -9,7 +9,9 @@ public abstract class WeberknechtException : Exception
 
 }
 
-public sealed class TypeResolutionException : WeberknechtException
+public abstract class ResolutionException(string? message) : WeberknechtException(message) { }
+
+public sealed class TypeResolutionException : ResolutionException
 {
 
     public string? Namespace { get; }
@@ -34,7 +36,7 @@ public sealed class TypeResolutionException : WeberknechtException
 
 }
 
-public sealed class ModuleResolutionException : WeberknechtException
+public sealed class ModuleResolutionException : ResolutionException
 {
 
     public string Name { get; }
@@ -48,7 +50,7 @@ public sealed class ModuleResolutionException : WeberknechtException
 
 }
 
-public sealed class AssemblyResolutionException : WeberknechtException
+public sealed class AssemblyResolutionException : ResolutionException
 {
 
     public AssemblyName Name { get; }
@@ -56,6 +58,20 @@ public sealed class AssemblyResolutionException : WeberknechtException
     internal AssemblyResolutionException(AssemblyName name) : base($"Unable to find assembly {name}")
     {
         Name = name;
+    }
+
+}
+
+public abstract class MetadataException(string? message) : WeberknechtException(message) { }
+
+public sealed class UnsupportedHashAlgorithmException : MetadataException
+{
+
+    public Guid HashAlgorithm { get; }
+
+    internal UnsupportedHashAlgorithmException(Guid algorithm) : base($"Unsupported hash algorithm {{{algorithm}}}")
+    {
+        HashAlgorithm = algorithm;
     }
 
 }

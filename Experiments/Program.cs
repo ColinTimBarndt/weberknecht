@@ -1,12 +1,18 @@
 ﻿using Weberknecht;
 
-Console.WriteLine("Hello, World!");
-
 int b = 2;
 
 var method = MethodReader.Read((in int a) =>
 {
-    return a + b + TestClass.CreateInt();
+    int temp = a + b;
+    unsafe
+    {
+        fixed (int* x = &a)
+        {
+            Console.WriteLine($"{(nint)x:016x} = {*x}");
+        }
+    }
+    return temp + TestClass.CreateInt();
 });
 
 Console.WriteLine(method.ToString(debugInfo: true));

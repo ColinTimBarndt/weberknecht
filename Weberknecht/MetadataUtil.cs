@@ -48,34 +48,23 @@ internal static class MetadataUtil
 
     extension(MethodInfo method)
     {
-        public MethodDebugInformation GetDebugInfo()
-        {
-            var metadata = method.Module.Assembly.GetDebugMetadataReader()
-                ?? throw new InvalidOperationException("Cannot read assembly metadata");
-            var token = (MethodDefinitionHandle)MetadataTokens.Handle(method.MetadataToken);
-            return metadata.GetMethodDebugInformation(token);
-        }
+        public MethodDefinitionHandle MetadataHandle => (MethodDefinitionHandle)MetadataTokens.Handle(method.MetadataToken);
     }
 
     extension(MetadataReader metadata)
     {
-        public string GetDocumentName(DocumentNameBlobHandle handle)
+        public Metadata.DocumentName GetDocumentName(DocumentNameBlobHandle handle)
         {
             // https://github.com/dotnet/runtime/blob/main/docs/design/specs/PortablePdb-Metadata.md#document-name-blob
             var reader = metadata.GetBlobReader(handle);
             var separator = reader.ReadChar();
-            StringBuilder str = new();
-            bool addSep = false;
+            var parts = ImmutableArray.CreateBuilder<string>();
             while (reader.RemainingBytes > 0)
             {
-                if (addSep)
-                    str.Append(separator);
-                addSep = true;
-
                 var part = metadata.GetBlobBytes(reader.ReadBlobHandle());
-                str.Append(Encoding.UTF8.GetString(part));
+                parts.Add(Encoding.UTF8.GetString(part));
             }
-            return str.ToString();
+            return new(separator, parts.ToImmutable());
         }
     }
 
