@@ -74,7 +74,7 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
         HandleKind.MethodSpecification when allowed.HasFlag(EntityType.Method) => _ctx.ResolveMethodHandle((MethodSpecificationHandle)handle),
         HandleKind.TypeDefinition when allowed.HasFlag(EntityType.Type) => _ctx.ResolveTypeHandle((TypeDefinitionHandle)handle),
         HandleKind.TypeReference when allowed.HasFlag(EntityType.Type) => _ctx.ResolveTypeHandle((TypeReferenceHandle)handle),
-        HandleKind.TypeSpecification when allowed.HasFlag(EntityType.Type) => _ctx.Meta.GetTypeSpecification((TypeSpecificationHandle)handle), // TODO: Generic context
+        HandleKind.TypeSpecification when allowed.HasFlag(EntityType.Type) => _ctx.ResolveTypeHandle((TypeSpecificationHandle)handle),
         HandleKind.FieldDefinition when allowed.HasFlag(EntityType.Field) => _ctx.ResolveFieldHandle((FieldDefinitionHandle)handle),
         HandleKind.MemberReference => GetMember((MemberReferenceHandle)handle, allowed),
         _ => throw new NotImplementedException($"{handle.Kind}")
