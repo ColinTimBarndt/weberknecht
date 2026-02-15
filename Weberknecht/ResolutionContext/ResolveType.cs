@@ -9,15 +9,8 @@ internal sealed partial class ResolutionContext
     {
         HandleKind.TypeDefinition => ResolveTypeHandle((TypeDefinitionHandle)handle),
         HandleKind.TypeReference => ResolveTypeHandle((TypeReferenceHandle)handle),
-        _ => throw new InvalidOperationException(),
-    };
-
-    public Type ResolveTypeHandle(EntityHandle handle, GenericContext ctx) => handle.Kind switch
-    {
-        HandleKind.TypeDefinition => ResolveTypeHandle((TypeDefinitionHandle)handle),
-        HandleKind.TypeReference => ResolveTypeHandle((TypeReferenceHandle)handle),
-        HandleKind.TypeSpecification => ResolveTypeHandle((TypeSpecificationHandle)handle, ctx),
-        _ => throw new InvalidOperationException(),
+        HandleKind.TypeSpecification => ResolveTypeHandle((TypeSpecificationHandle)handle),
+        _ => throw new InvalidOperationException(handle.Kind.ToString()),
     };
 
     public Type ResolveTypeHandle(TypeDefinitionHandle handle)
@@ -104,10 +97,10 @@ internal sealed partial class ResolutionContext
         }
     }
 
-    public Type ResolveType(TypeSpecificationHandle handle, GenericContext ctx)
-        => ResolveType(Meta.GetTypeSpecification(handle), ctx);
+    public Type ResolveTypeHandle(TypeSpecificationHandle handle)
+        => ResolveType(Meta.GetTypeSpecification(handle));
 
-    public Type ResolveType(TypeSpecification spec, GenericContext ctx)
-        => spec.DecodeSignature(this, ctx);
+    public Type ResolveType(TypeSpecification spec)
+        => spec.DecodeSignature(this, _gctx);
 
 }

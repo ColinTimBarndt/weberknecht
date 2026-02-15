@@ -3,12 +3,13 @@ using System.Reflection.Metadata;
 
 namespace Weberknecht;
 
-internal sealed partial class ResolutionContext(Module module, MetadataReader meta)
+internal sealed partial class ResolutionContext(Module module, MetadataReader meta, GenericContext gctx)
 {
 
     public Module Module { get; } = module;
     public Assembly Assembly { get; } = module.Assembly;
     public MetadataReader Meta { get; } = meta;
+    private GenericContext _gctx = gctx;
 
     private Type GetDeclaredType(string? ns, string name)
         => GetDeclaredType(ns, name, Assembly);

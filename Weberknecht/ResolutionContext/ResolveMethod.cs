@@ -29,8 +29,7 @@ internal sealed partial class ResolutionContext
             _ => throw new NotImplementedException(genMethodHandle.Kind.ToString()),
         };
 
-        var ctx = new GenericContext(info.DeclaringType!.GetGenericArguments(), info.GetGenericArguments());
-        var typeArgs = spec.DecodeSignature(this, ctx);
+        var typeArgs = spec.DecodeSignature(this, _gctx);
         return info switch
         {
             MethodInfo method => method.MakeGenericMethod([.. typeArgs]),
@@ -48,8 +47,8 @@ internal sealed partial class ResolutionContext
 
         var (header, mvarCount) = MetadataUtil.ReadMethodHeader(Meta, memberRef.Signature);
 
-        var ctx = new GenericContext(type.GetGenericArguments(), mvarCount);
-        var sig = memberRef.DecodeMethodSignature(this, ctx);
+        var gctx = new GenericContext(type.GetGenericArguments(), mvarCount);
+        var sig = memberRef.DecodeMethodSignature(this, gctx);
         return ResolveMethod(type, Meta.GetString(memberRef.Name), header, mvarCount, sig);
     }
 
@@ -62,12 +61,12 @@ internal sealed partial class ResolutionContext
 
         var (header, mvarCount) = MetadataUtil.ReadMethodHeader(Meta, methodDef.Signature);
 
-        var ctx = new GenericContext(type.GetGenericArguments(), mvarCount);
-        var sig = methodDef.DecodeSignature(this, ctx);
+        var gctx = new GenericContext(type.GetGenericArguments(), mvarCount);
+        var sig = methodDef.DecodeSignature(this, gctx);
         return ResolveMethod(type, Meta.GetString(methodDef.Name), header, mvarCount, sig);
     }
 
-    private MethodBase ResolveMethod(Type type, string name, SignatureHeader header, int mvarCount, MethodSignature<Type> sig)
+    private static MethodBase ResolveMethod(Type type, string name, SignatureHeader header, int mvarCount, MethodSignature<Type> sig)
     {
         if (name == ".ctor" || name == ".cctor")
         {

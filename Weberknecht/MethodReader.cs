@@ -21,7 +21,8 @@ public static class MethodReader
         var ilBytes = body.GetILAsByteArray()
             ?? throw new InvalidOperationException("Method has no body");
 
-        var ctx = new ResolutionContext(method.Module, metadata);
+        var gctx = new GenericContext(method.DeclaringType?.GetGenericArguments() ?? [], method.GetGenericArguments());
+        var ctx = new ResolutionContext(method.Module, metadata, gctx);
 
         List<Instruction> instructions = [];
         Dictionary<int, int> jumpTable = [];
@@ -59,7 +60,6 @@ public static class MethodReader
             Dictionary<DocumentHandle, Metadata.Document> documents = [];
             var debugInfo = debugMetadata.GetMethodDebugInformation(method.MetadataHandle);
 
-            var gctx = new GenericContext(method.DeclaringType?.GetGenericArguments() ?? [], method.GetGenericArguments());
             localNames = GetLocalNames(ctx, gctx, debugMetadata, method.MetadataHandle);
 
             foreach (var point in debugInfo.GetSequencePoints())
@@ -87,7 +87,13 @@ public static class MethodReader
             localVariables.Add(new(local.LocalType, local.IsPinned, name));
         }
 
-        return new(method.ReturnType, [.. method.GetParameters().Select(info => (Method.Parameter)info)], localVariables, instructions);
+        return new(
+            method.ReturnType,
+            [.. method.GetGenericArguments()],
+            [.. method.GetParameters().Select(info => (Method.Parameter)info)],
+            localVariables,
+            instructions
+        );
     }
 
     private static Dictionary<int, string> GetLocalNames(ResolutionContext ctx, GenericContext gctx, MetadataReader debugMetadata, MethodDefinitionHandle methodHandle)

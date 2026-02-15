@@ -44,7 +44,7 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
             OperandType.InlineBrTarget => BitConverter.ToInt32(immData) + _index,
             OperandType.InlineField => GetTok(GetHandle(immData), EntityType.Field),
             OperandType.InlineMethod => GetTok(GetHandle(immData), EntityType.Method),
-            OperandType.InlineType => _ctx.ResolveTypeHandle((TypeDefinitionHandle)GetHandle(immData)),
+            OperandType.InlineType => GetTok(GetHandle(immData), EntityType.Type),
             OperandType.InlineTok => GetTok(GetHandle(immData), EntityType.Type | EntityType.Method | EntityType.Field),
             OperandType.InlineSwitch or
             OperandType.InlineI => BitConverter.ToInt32(immData),
@@ -54,7 +54,7 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
             OperandType.InlineNone => null,
             OperandType.InlineR => BitConverter.ToDouble(immData),
             OperandType.InlineVar => BitConverter.ToUInt16(immData),
-            OperandType.ShortInlineBrTarget => (int)(sbyte)immData[0] + _index,
+            OperandType.ShortInlineBrTarget => (sbyte)immData[0] + _index,
             OperandType.ShortInlineI => (int)(sbyte)immData[0],
             OperandType.ShortInlineR => BitConverter.ToSingle(immData),
             OperandType.ShortInlineVar => (ushort)immData[0],
@@ -65,13 +65,8 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
         return true;
     }
 
-    private readonly Handle GetHandle(ReadOnlySpan<byte> span) => GetHandle(BitConverter.ToInt32(span));
-    private readonly Handle GetHandle(int token)
-    {
-        var handle = MetadataTokens.Handle(token);
-        //Console.WriteLine($"Handle: {handle.Kind}");
-        return handle;
-    }
+    private static Handle GetHandle(ReadOnlySpan<byte> span) => GetHandle(BitConverter.ToInt32(span));
+    private static Handle GetHandle(int token) => MetadataTokens.Handle(token);
 
     private readonly object GetTok(Handle handle, EntityType allowed) => handle.Kind switch
     {

@@ -6,15 +6,17 @@ namespace Weberknecht;
 public class Method
 {
 
+    private readonly List<Type> _genericArguments;
     private readonly List<Parameter> _parameters;
     private readonly List<LocalVariable> _localVariables;
     private readonly List<Instruction> _instructions;
     public Type ReturnType { get; }
 
-    public Method(Type returnType) : this(returnType, [], [], []) { }
+    public Method(Type returnType) : this(returnType, [], [], [], []) { }
 
-    internal Method(Type returnType, List<Parameter> parameters, List<LocalVariable> localVariables, List<Instruction> instrs)
+    internal Method(Type returnType, List<Type> genericArguments, List<Parameter> parameters, List<LocalVariable> localVariables, List<Instruction> instrs)
     {
+        _genericArguments = genericArguments;
         _parameters = parameters;
         _localVariables = localVariables;
         _instructions = instrs;
@@ -77,7 +79,16 @@ public class Method
     {
         StringBuilder builder = new();
         builder.Append(ReturnType.Name)
-            .Append(" Method(")
+            .Append(" Method");
+
+        if (_genericArguments.Count > 0)
+        {
+            builder.Append('<')
+                .AppendJoin(", ", _genericArguments)
+                .Append('>');
+        }
+
+        builder.Append('(')
             .AppendJoin(", ", _parameters)
             .Append(')');
         if (_instructions.Count == 0)
