@@ -9,12 +9,12 @@ public class Method
     private readonly List<Type> _genericArguments;
     private readonly List<Parameter> _parameters;
     private readonly List<LocalVariable> _localVariables;
-    private readonly List<Instruction> _instructions;
+    private readonly List<PseudoInstruction> _instructions;
     public Type ReturnType { get; }
 
     public Method(Type returnType) : this(returnType, [], [], [], []) { }
 
-    internal Method(Type returnType, List<Type> genericArguments, List<Parameter> parameters, List<LocalVariable> localVariables, List<Instruction> instrs)
+    internal Method(Type returnType, List<Type> genericArguments, List<Parameter> parameters, List<LocalVariable> localVariables, List<PseudoInstruction> instrs)
     {
         _genericArguments = genericArguments;
         _parameters = parameters;
@@ -92,7 +92,7 @@ public class Method
             .AppendJoin(", ", _parameters)
             .Append(')');
         if (_instructions.Count == 0)
-            builder.Append("\n        <empty>");
+            builder.Append("\n    <empty>");
         else
         {
             if (_localVariables.Count > 0)
@@ -101,15 +101,22 @@ public class Method
                     .AppendJoin(", ", _localVariables)
                     .Append(')');
             }
-            foreach (var instr in _instructions)
+            foreach (var pinstr in _instructions)
             {
-                if (debugInfo && instr.DebugInfo.HasValue)
+                if (pinstr.Type is PseudoInstructionType.Instruction)
                 {
-                    var seq = instr.DebugInfo.Value;
-                    builder.Append($"\n  @ {seq}");
+                    var instr = pinstr.AsInstruction();
+                    if (debugInfo && instr.DebugInfo is Metadata.SequencePoint seq)
+                    {
+                        builder.Append($"\n@ {seq}");
+                    }
+                    builder.Append("\n    ");
                 }
-                builder.AppendLine()
-                    .Append(instr.ToString(true));
+                else
+                {
+                    builder.Append('\n');
+                }
+                builder.Append(in pinstr);
             }
         }
         return builder.ToString();

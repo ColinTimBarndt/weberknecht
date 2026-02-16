@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Reflection.Metadata;
+using System.Runtime.InteropServices;
 
 namespace Weberknecht;
 
@@ -24,32 +25,38 @@ public static class MethodReader
         var gctx = new GenericContext(method.DeclaringType?.GetGenericArguments() ?? [], method.GetGenericArguments());
         var ctx = new ResolutionContext(method.Module, metadata, gctx);
 
-        List<Instruction> instructions = [];
+        List<PseudoInstruction> instructions = [];
         Dictionary<int, int> jumpTable = [];
 
         var il = new InstructionDecoder(ilBytes, ctx);
         while (il.MoveNext())
         {
+            instructions.Add(PseudoInstruction.Label(0)); // Placeholder
             jumpTable.Add(il.CurrentAddress, instructions.Count);
             instructions.Add(il.Current);
         }
 
-        ushort lastLabel = 0;
-        for (int i = 0; i < instructions.Count; i++)
+        Span<PseudoInstruction> instructionsSpan = CollectionsMarshal.AsSpan(instructions);
+
+        uint lastLabel = 0;
+        for (int i = 1; i < instructionsSpan.Length; i += 2)
         {
-            var instr = instructions[i];
+            ref var instr = ref instructionsSpan[i].AsInstructionRef();
             if (instr.OpCode.OperandType is not OperandType.InlineBrTarget and not OperandType.ShortInlineBrTarget)
                 continue;
 
             var targetIndex = jumpTable[(int)instr._operand!];
-            var target = instructions[targetIndex];
-            if (target._label == 0)
+            ref var target = ref instructionsSpan[targetIndex - 1].AsLabelRef();
+            if (target == 0)
             {
-                target._label = ++lastLabel;
-                instructions[targetIndex] = target;
+                // New label
+                instr._operand = ++lastLabel;
+                target = lastLabel;
             }
-            instr._operand = lastLabel;
-            instructions[i] = instr;
+            else
+            {
+                instr._operand = target;
+            }
         }
 
         var debugMetadata = assembly.GetDebugMetadataReader();
@@ -67,16 +74,18 @@ public static class MethodReader
                 if (!jumpTable.TryGetValue(point.Offset, out int index))
                     continue;
 
-                var instr = instructions[index];
+                ref var instr = ref instructionsSpan[index].AsInstructionRef();
                 if (!documents.TryGetValue(point.Document, out var document))
                 {
                     document = Metadata.Document.FromMetadata(debugMetadata, point.Document);
                     documents[point.Document] = document;
                 }
                 instr.DebugInfo = new(document, point.StartLine, point.StartColumn, point.EndLine, point.EndColumn);
-                instructions[index] = instr;
             }
         }
+
+        instructionsSpan = default; // Ensure span is not used
+        instructions.RemoveAll(instr => instr.Type == PseudoInstructionType.Label && instr.AsLabel() == 0);
 
         List<Method.LocalVariable> localVariables = new(body.LocalVariables.Count);
         for (int i = 0; i < body.LocalVariables.Count; i++)

@@ -9,7 +9,6 @@ public struct Instruction
 {
 
     public readonly OpCode OpCode { get; init; } = OpCodes.Nop;
-    internal ushort _label = 0;
     internal object? _operand = null;
     public SequencePoint? DebugInfo { get; set; }
 
@@ -19,28 +18,32 @@ public struct Instruction
         _operand = immadiate;
     }
 
-    public override readonly string ToString() => ToString(false);
+    public override readonly string ToString() => new StringBuilder().Append(in this).ToString();
 
-    public readonly string ToString(bool label)
+}
+
+public static class InstructionExt
+{
+
+    public static StringBuilder Append(this StringBuilder builder, in Instruction self)
     {
-        var prefix = label ? (_label == 0 ? "        " : $"L{_label:X4}:  ") : null;
-        if (_operand == null)
-        {
-            return $"{prefix}{OpCode}";
-        }
+        builder.Append(self.OpCode);
 
-        if (OpCode.OperandType is OperandType.InlineBrTarget or OperandType.ShortInlineBrTarget)
-            return $"{prefix}{OpCode} L{_operand:X4}";
+        if (self._operand == null)
+            return builder;
 
-        StringBuilder builder = new();
-        builder.Append(prefix).Append(OpCode).Append(' ');
-        return (_operand switch
+        builder.Append(' ');
+
+        if (self.OpCode.OperandType is OperandType.InlineBrTarget or OperandType.ShortInlineBrTarget)
+            return builder.AppendFormat("L{0:X}", self._operand);
+
+        return self._operand switch
         {
             string s => FormatLiteral(builder, s),
             MethodInfo method => FormatMethod(builder, method),
             ConstructorInfo ctor => FormatConstructor(builder, ctor),
-            _ => builder.Append(_operand),
-        }).ToString();
+            _ => builder.Append(self._operand),
+        };
     }
 
     private static StringBuilder FormatLiteral(StringBuilder builder, string literal)
@@ -107,6 +110,102 @@ public struct Instruction
         builder.Append('(').AppendJoin(", ", ctor.GetParameters()).Append(')');
 
         return builder;
+    }
+
+}
+
+public enum PseudoInstructionType : byte
+{
+    Invalid = 0,
+    Instruction,
+    Label,
+    Try,
+    Catch,
+    Finally,
+}
+
+public struct PseudoInstruction
+{
+    public readonly PseudoInstructionType Type { get; } = PseudoInstructionType.Invalid;
+
+    // managed type
+    internal Instruction _instruction;
+
+    internal uint _label;
+
+    public override readonly string ToString() => new StringBuilder().Append(in this).ToString();
+
+    private PseudoInstruction(PseudoInstructionType tag)
+    {
+        Type = tag;
+    }
+
+    private PseudoInstruction(Instruction instr) : this(PseudoInstructionType.Instruction)
+    {
+        _instruction = instr;
+    }
+
+    private PseudoInstruction(uint label) : this(PseudoInstructionType.Label)
+    {
+        _label = label;
+    }
+
+    public static implicit operator PseudoInstruction(Instruction instr) => new(instr);
+
+    public static PseudoInstruction Label(uint label) => new(label);
+
+    public static PseudoInstruction Try() => new(PseudoInstructionType.Try);
+
+    public static PseudoInstruction Catch() => new(PseudoInstructionType.Catch);
+
+    public static PseudoInstruction Finally() => new(PseudoInstructionType.Finally);
+
+}
+
+// Extension class to receive 'this' by ref
+public static class PseudoInstructionExt
+{
+
+    public static ref Instruction AsInstructionRef(ref this PseudoInstruction self)
+    {
+        if (self.Type != PseudoInstructionType.Instruction)
+            throw new InvalidOperationException();
+        return ref self._instruction;
+    }
+
+    public static Instruction AsInstruction(this PseudoInstruction self)
+    {
+        if (self.Type != PseudoInstructionType.Instruction)
+            throw new InvalidOperationException();
+        return self._instruction;
+    }
+
+    public static ref uint AsLabelRef(ref this PseudoInstruction self)
+    {
+        if (self.Type != PseudoInstructionType.Label)
+            throw new InvalidOperationException();
+        return ref self._label;
+    }
+
+    public static uint AsLabel(this PseudoInstruction self)
+    {
+        if (self.Type != PseudoInstructionType.Label)
+            throw new InvalidOperationException();
+        return self._label;
+    }
+
+    public static StringBuilder Append(this StringBuilder builder, in PseudoInstruction self)
+    {
+        return self.Type switch
+        {
+            PseudoInstructionType.Invalid => builder,
+            PseudoInstructionType.Instruction => builder.Append(in self._instruction),
+            PseudoInstructionType.Label => builder.AppendFormat("L{0:X}:", self._label),
+            PseudoInstructionType.Try => builder.Append("try:"),
+            PseudoInstructionType.Catch => builder.Append("catch:"), //TODO
+            PseudoInstructionType.Finally => builder.Append("finally:"),
+            _ => throw new NotImplementedException(Enum.GetName(self.Type)),
+        };
     }
 
 }
