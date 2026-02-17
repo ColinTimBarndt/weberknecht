@@ -39,28 +39,28 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
         var immData = _data.Slice(_index, immSize);
         _index += immSize;
         //Console.WriteLine(operandType);
-        object? immediate = operandType switch
+        ValueTuple<object?, Instruction.UnmanagedOperand> immediate = operandType switch
         {
-            OperandType.InlineBrTarget => BitConverter.ToInt32(immData) + _index,
-            OperandType.InlineField => GetTok(GetHandle(immData), EntityType.Field),
-            OperandType.InlineMethod => GetTok(GetHandle(immData), EntityType.Method),
-            OperandType.InlineType => GetTok(GetHandle(immData), EntityType.Type),
-            OperandType.InlineTok => GetTok(GetHandle(immData), EntityType.Type | EntityType.Method | EntityType.Field),
-            OperandType.InlineSwitch or
-            OperandType.InlineI => BitConverter.ToInt32(immData),
-            OperandType.InlineSig => _ctx.Meta.GetStandaloneSignature((StandaloneSignatureHandle)GetHandle(immData)),
-            OperandType.InlineString => _ctx.Meta.GetUserString((UserStringHandle)GetHandle(immData)),
-            OperandType.InlineI8 => BitConverter.ToInt64(immData),
-            OperandType.InlineNone => null,
-            OperandType.InlineR => BitConverter.ToDouble(immData),
-            OperandType.InlineVar => BitConverter.ToUInt16(immData),
-            OperandType.ShortInlineBrTarget => (sbyte)immData[0] + _index,
-            OperandType.ShortInlineI => (int)(sbyte)immData[0],
-            OperandType.ShortInlineR => BitConverter.ToSingle(immData),
-            OperandType.ShortInlineVar => (ushort)immData[0],
+            OperandType.InlineBrTarget => (null, BitConverter.ToInt32(immData) + _index),
+            OperandType.InlineField => (GetTok(GetHandle(immData), EntityType.Field), default),
+            OperandType.InlineMethod => (GetTok(GetHandle(immData), EntityType.Method), default),
+            OperandType.InlineType => (GetTok(GetHandle(immData), EntityType.Type), default),
+            OperandType.InlineTok => (GetTok(GetHandle(immData), EntityType.Type | EntityType.Method | EntityType.Field), default),
+            OperandType.InlineSwitch => throw new NotImplementedException("switch"),
+            OperandType.InlineI => (null, BitConverter.ToInt32(immData)),
+            OperandType.InlineSig => (GetSignature((StandaloneSignatureHandle)GetHandle(immData)), default),
+            OperandType.InlineString => (_ctx.Meta.GetUserString((UserStringHandle)GetHandle(immData)), default),
+            OperandType.InlineI8 => (null, BitConverter.ToInt64(immData)),
+            OperandType.InlineNone => default,
+            OperandType.InlineR => (null, BitConverter.ToDouble(immData)),
+            OperandType.InlineVar => (null, BitConverter.ToUInt16(immData)),
+            OperandType.ShortInlineBrTarget => (null, (sbyte)immData[0] + _index),
+            OperandType.ShortInlineI => (null, (sbyte)immData[0]),
+            OperandType.ShortInlineR => (null, BitConverter.ToSingle(immData)),
+            OperandType.ShortInlineVar => (null, immData[0]),
             _ => throw new UnreachableException(),
         };
-        Current = new(op, immediate);
+        Current = new(op, immediate.Item1, immediate.Item2);
 
         return true;
     }
@@ -77,7 +77,7 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
         HandleKind.TypeSpecification when allowed.HasFlag(EntityType.Type) => _ctx.ResolveTypeHandle((TypeSpecificationHandle)handle),
         HandleKind.FieldDefinition when allowed.HasFlag(EntityType.Field) => _ctx.ResolveFieldHandle((FieldDefinitionHandle)handle),
         HandleKind.MemberReference => GetMember((MemberReferenceHandle)handle, allowed),
-        _ => throw new NotImplementedException($"{handle.Kind}")
+        _ => throw new NotImplementedException(Enum.GetName(handle.Kind))
     };
 
     private readonly object GetMember(MemberReferenceHandle handle, EntityType allowed)
@@ -92,6 +92,24 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
             SignatureKind.Field when allowed.HasFlag(EntityType.Field) => _ctx.ResolveField(member),
             _ => throw new InvalidDataException(),
         };
+    }
+
+    private readonly object GetSignature(StandaloneSignatureHandle handle) => GetSignature(_ctx.Meta.GetStandaloneSignature(handle));
+
+    private readonly object GetSignature(StandaloneSignature sig)
+    {
+        switch (sig.GetKind())
+        {
+            case StandaloneSignatureKind.Method:
+                break;
+
+            case StandaloneSignatureKind.LocalVariables:
+                break;
+
+            default:
+                throw new NotImplementedException(Enum.GetName(sig.GetKind()));
+        }
+        throw new NotImplementedException(); // TODO
     }
 
     public void Reset()

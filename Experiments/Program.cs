@@ -1,4 +1,5 @@
-﻿using Weberknecht;
+﻿using System.Reflection.Emit;
+using Weberknecht;
 
 {
     var method = MethodReader.Read(typeof(TestClass).GetMethod(nameof(TestClass.Print))!);
@@ -8,10 +9,19 @@
 {
     int b = 2;
 
-    var method = MethodReader.Read((in int a) =>
+    MyMethod original = (in int a) =>
     {
         return a + b + TestClass.CreateInt();
-    });
+    };
+
+    var method = MethodReader.Read(original);
 
     Console.WriteLine(method);
+
+    var dynMethod = method.MakeDynamicMethod("Test");
+
+    var dynDelegate = dynMethod.CreateDelegate<MyMethod>(original.Target);
+    Console.WriteLine($"{original(42)} = {dynDelegate(42)}");
 }
+
+delegate int MyMethod(in int a);

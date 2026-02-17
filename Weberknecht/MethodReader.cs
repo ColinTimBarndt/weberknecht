@@ -38,24 +38,25 @@ public static class MethodReader
 
         Span<PseudoInstruction> instructionsSpan = CollectionsMarshal.AsSpan(instructions);
 
-        uint lastLabel = 0;
+        // Assigns values to the interleaved labels when used
+        int lastLabel = 0;
         for (int i = 1; i < instructionsSpan.Length; i += 2)
         {
             ref var instr = ref instructionsSpan[i].AsInstructionRef();
             if (instr.OpCode.OperandType is not OperandType.InlineBrTarget and not OperandType.ShortInlineBrTarget)
                 continue;
 
-            var targetIndex = jumpTable[(int)instr._operand!];
+            var targetIndex = jumpTable[instr._uoperand.@int];
             ref var target = ref instructionsSpan[targetIndex - 1].AsLabelRef();
             if (target == 0)
             {
                 // New label
-                instr._operand = ++lastLabel;
+                instr._uoperand.@int = ++lastLabel;
                 target = lastLabel;
             }
             else
             {
-                instr._operand = target;
+                instr._uoperand.@int = target;
             }
         }
 
@@ -85,6 +86,7 @@ public static class MethodReader
         }
 
         instructionsSpan = default; // Ensure span is not used
+        // Remove unused interleaved labels
         instructions.RemoveAll(instr => instr.Type == PseudoInstructionType.Label && instr.AsLabel() == 0);
 
         List<Method.LocalVariable> localVariables = new(body.LocalVariables.Count);
@@ -96,12 +98,22 @@ public static class MethodReader
             localVariables.Add(new(local.LocalType, local.IsPinned, name));
         }
 
+        var parameterInfos = method.GetParameters();
+        List<Method.Parameter> parameters = new(parameterInfos.Length + (method.IsStatic ? 0 : 1));
+
+        if (!method.IsStatic)
+            parameters.Add(new(null, method.DeclaringType!, Method.ParameterModifier.None));
+
+        for (int i = 0; i < parameterInfos.Length; i++)
+            parameters.Add(parameterInfos[i]);
+
         return new(
             method.ReturnType,
             [.. method.GetGenericArguments()],
-            [.. method.GetParameters().Select(info => (Method.Parameter)info)],
+            parameters,
             localVariables,
-            instructions
+            instructions,
+            lastLabel
         );
     }
 
