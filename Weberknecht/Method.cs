@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
@@ -13,7 +14,10 @@ public class Method
     private readonly List<LocalVariable> _localVariables;
     private readonly List<PseudoInstruction> _instructions;
     private int _labelCount;
+
     public Type ReturnType { get; }
+
+    public ReadOnlyCollection<PseudoInstruction> Instructions => _instructions.AsReadOnly();
 
     public Method(Type returnType) : this(returnType, [], [], [], [], 0) { }
 
