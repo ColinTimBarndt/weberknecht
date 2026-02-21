@@ -135,8 +135,8 @@ public partial struct Instruction
                 return;
 
             case OperandType.InlineVar:
-                throw new NotImplementedException("InlineVar");
-            //il.Emit(OpCode, _uoperand.@ushort); // TODO
+                il.Emit(OpCode, _uoperand.@ushort);
+                return;
 
             case OperandType.ShortInlineI:
                 il.Emit(OpCode, _uoperand.@sbyte);
@@ -147,13 +147,64 @@ public partial struct Instruction
                 return;
 
             case OperandType.ShortInlineVar:
-                throw new NotImplementedException("ShortInlineVar");
-            //il.Emit(OpCode, _uoperand.@byte); // TODO
+                il.Emit(OpCode, _uoperand.@byte);
+                return;
 
             default:
                 throw new NotImplementedException($"OperandType {Enum.GetName(OpCode.OperandType)}");
         }
     }
+
+    /// <summary>
+    /// Expands a short-form instruction into its full variant.
+    /// </summary>
+    public readonly Instruction Normalized() => (ushort)OpCode.Value switch
+    {
+        LDARG_0 => new(OpCodes.Ldarg, (ushort)0),
+        LDARG_1 => new(OpCodes.Ldarg, (ushort)1),
+        LDARG_2 => new(OpCodes.Ldarg, (ushort)2),
+        LDARG_3 => new(OpCodes.Ldarg, (ushort)3),
+        LDARG_S => new(OpCodes.Ldarg, (ushort)_uoperand.@byte),
+        LDLOC_0 => new(OpCodes.Ldloc, (ushort)0),
+        LDLOC_1 => new(OpCodes.Ldloc, (ushort)1),
+        LDLOC_2 => new(OpCodes.Ldloc, (ushort)2),
+        LDLOC_3 => new(OpCodes.Ldloc, (ushort)3),
+        LDLOC_S => new(OpCodes.Ldloc, (ushort)_uoperand.@byte),
+        STLOC_0 => new(OpCodes.Stloc, (ushort)0),
+        STLOC_1 => new(OpCodes.Stloc, (ushort)1),
+        STLOC_2 => new(OpCodes.Stloc, (ushort)2),
+        STLOC_3 => new(OpCodes.Stloc, (ushort)3),
+        STLOC_S => new(OpCodes.Stloc, (ushort)_uoperand.@byte),
+        LDARGA_S => new(OpCodes.Ldarga, (ushort)_uoperand.@byte),
+        STARG_S => new(OpCodes.Starg, (ushort)_uoperand.@byte),
+        LDLOCA_S => new(OpCodes.Ldloca, (ushort)_uoperand.@byte),
+        LDC_I4_M1 => new(OpCodes.Ldc_I4, -1),
+        LDC_I4_0 => new(OpCodes.Ldc_I4, 0),
+        LDC_I4_1 => new(OpCodes.Ldc_I4, 1),
+        LDC_I4_2 => new(OpCodes.Ldc_I4, 2),
+        LDC_I4_3 => new(OpCodes.Ldc_I4, 3),
+        LDC_I4_4 => new(OpCodes.Ldc_I4, 4),
+        LDC_I4_5 => new(OpCodes.Ldc_I4, 5),
+        LDC_I4_6 => new(OpCodes.Ldc_I4, 6),
+        LDC_I4_7 => new(OpCodes.Ldc_I4, 7),
+        LDC_I4_8 => new(OpCodes.Ldc_I4, 8),
+        LDC_I4_S => new(OpCodes.Ldc_I4, (int)_uoperand.@sbyte),
+        BR_S => new(OpCodes.Br_S, (int)_uoperand.@sbyte),
+        BRFALSE_S => new(OpCodes.Brfalse_S, (int)_uoperand.@sbyte),
+        BRTRUE_S => new(OpCodes.Brtrue_S, (int)_uoperand.@sbyte),
+        BEQ_S => new(OpCodes.Beq_S, (int)_uoperand.@sbyte),
+        BGE_S => new(OpCodes.Bge_S, (int)_uoperand.@sbyte),
+        BGT_S => new(OpCodes.Bgt_S, (int)_uoperand.@sbyte),
+        BLE_S => new(OpCodes.Ble_S, (int)_uoperand.@sbyte),
+        BLT_S => new(OpCodes.Blt_S, (int)_uoperand.@sbyte),
+        BNE_UN_S => new(OpCodes.Bne_Un_S, (int)_uoperand.@sbyte),
+        BGE_UN_S => new(OpCodes.Bge_Un_S, (int)_uoperand.@sbyte),
+        BGT_UN_S => new(OpCodes.Bgt_Un_S, (int)_uoperand.@sbyte),
+        BLE_UN_S => new(OpCodes.Ble_Un_S, (int)_uoperand.@sbyte),
+        BLT_UN_S => new(OpCodes.Blt_Un_S, (int)_uoperand.@sbyte),
+        LEAVE_S => new(OpCodes.Leave, (int)_uoperand.@sbyte),
+        _ => this,
+    };
 
 }
 
