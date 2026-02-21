@@ -69,6 +69,29 @@ internal static class MetadataUtil
             }
             return new(separator, parts.ToImmutable());
         }
+
+        public Dictionary<int, string> GetLocalNames(MethodDefinitionHandle methodHandle)
+        {
+            Dictionary<int, string> names = [];
+            metadata.GetLocalNames(methodHandle, names);
+            return names;
+        }
+
+        public void GetLocalNames(MethodDefinitionHandle methodHandle, Dictionary<int, string> names)
+        {
+            foreach (var scopeHandle in metadata.GetLocalScopes(methodHandle))
+            {
+                var scope = metadata.GetLocalScope(scopeHandle);
+
+                foreach (var localHandle in scope.GetLocalVariables())
+                {
+                    var local = metadata.GetLocalVariable(localHandle);
+                    if (local.Name.IsNil) continue;
+
+                    names.Add(local.Index, metadata.GetString(local.Name));
+                }
+            }
+        }
     }
 
     public static (SignatureHeader, int) ReadMethodHeader(MetadataReader reader, BlobHandle signatureHandle)

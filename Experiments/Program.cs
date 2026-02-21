@@ -1,20 +1,19 @@
-﻿using System.Reflection.Emit;
-using Weberknecht;
+﻿using Weberknecht;
 
 {
-    var method = MethodReader.Read(typeof(TestClass).GetMethod(nameof(TestClass.Print))!);
+    var method = Method.Read(typeof(TestClass).GetMethod(nameof(TestClass.Print))!);
     Console.WriteLine(method.ToString(debugInfo: true));
 }
 
 {
     int b = 2;
 
-    MyMethod original = (in int a) =>
+    MyMethod original = (in a) =>
     {
         return a + b + TestClass.CreateInt();
     };
 
-    var method = MethodReader.Read(original);
+    var method = Method.Read(original);
 
     Console.WriteLine(method);
 

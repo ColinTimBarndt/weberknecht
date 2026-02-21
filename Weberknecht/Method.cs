@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Weberknecht;
 
-public class Method
+public partial class Method
 {
 
     private readonly List<Type> _genericArguments;

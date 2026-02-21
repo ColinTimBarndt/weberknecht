@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace Weberknecht;
 
-public static class MethodReader
+public partial class Method
 {
 
     public static Method Read(Delegate d) => Read(d.Method);
@@ -25,7 +25,9 @@ public static class MethodReader
         var gctx = new GenericContext(method.DeclaringType?.GetGenericArguments() ?? [], method.GetGenericArguments());
         var ctx = new ResolutionContext(method.Module, metadata, gctx);
 
-        List<PseudoInstruction> instructions = [];
+        Method instance = new(method.ReturnType);
+
+        List<PseudoInstruction> instructions = instance._instructions;
         Dictionary<int, int> jumpTable = [];
 
         var il = new InstructionDecoder(ilBytes, ctx);
@@ -59,6 +61,7 @@ public static class MethodReader
                 instr._uoperand.@int = target;
             }
         }
+        instance._labelCount = lastLabel;
 
         var debugMetadata = assembly.GetDebugMetadataReader();
         Dictionary<int, string>? localNames = null;
@@ -68,7 +71,7 @@ public static class MethodReader
             Dictionary<DocumentHandle, Metadata.Document> documents = [];
             var debugInfo = debugMetadata.GetMethodDebugInformation(method.MetadataHandle);
 
-            localNames = GetLocalNames(ctx, gctx, debugMetadata, method.MetadataHandle);
+            localNames = debugMetadata.GetLocalNames(method.MetadataHandle);
 
             foreach (var point in debugInfo.GetSequencePoints())
             {
@@ -89,57 +92,32 @@ public static class MethodReader
         // Remove unused interleaved labels
         instructions.RemoveAll(instr => instr.Type == PseudoInstructionType.Label && instr.AsLabel() == 0);
 
-        List<Method.LocalVariable> localVariables = new(body.LocalVariables.Count);
+        instance._localVariables.EnsureCapacity(body.LocalVariables.Count);
         for (int i = 0; i < body.LocalVariables.Count; i++)
         {
             var local = body.LocalVariables[i];
             if (local.LocalIndex != i) throw new UnreachableException("local index does not match index in locals");
             var name = localNames?.GetValueOrDefault(i);
-            localVariables.Add(new(local.LocalType, local.IsPinned, name));
+            instance._localVariables.Add(new(local.LocalType, local.IsPinned, name));
         }
 
         var parameterInfos = method.GetParameters();
-        List<Method.Parameter> parameters = new(parameterInfos.Length + (method.IsStatic ? 0 : 1));
+        instance._parameters.EnsureCapacity(parameterInfos.Length + (method.IsStatic ? 0 : 1));
 
         if (!method.IsStatic)
         {
             Type declType = method.DeclaringType!;
             if (declType.IsValueType)
                 declType = declType.MakeByRefType();
-            parameters.Add(new(null, declType, Method.ParameterModifier.None));
+            instance._parameters.Add(new(null, declType, ParameterModifier.None));
         }
 
         for (int i = 0; i < parameterInfos.Length; i++)
-            parameters.Add(parameterInfos[i]);
+            instance._parameters.Add(parameterInfos[i]);
 
-        return new(
-            method.ReturnType,
-            [.. method.GetGenericArguments()],
-            parameters,
-            localVariables,
-            instructions,
-            lastLabel
-        );
-    }
+        instance._genericArguments.AddRange(method.GetGenericArguments());
 
-    private static Dictionary<int, string> GetLocalNames(ResolutionContext ctx, GenericContext gctx, MetadataReader debugMetadata, MethodDefinitionHandle methodHandle)
-    {
-        Dictionary<int, string> names = [];
-
-        foreach (var scopeHandle in debugMetadata.GetLocalScopes(methodHandle))
-        {
-            var scope = debugMetadata.GetLocalScope(scopeHandle);
-
-            foreach (var localHandle in scope.GetLocalVariables())
-            {
-                var local = debugMetadata.GetLocalVariable(localHandle);
-                if (local.Name.IsNil) continue;
-
-                names.Add(local.Index, debugMetadata.GetString(local.Name));
-            }
-        }
-
-        return names;
+        return instance;
     }
 
 }
