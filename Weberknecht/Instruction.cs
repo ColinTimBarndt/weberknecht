@@ -6,7 +6,7 @@ using Weberknecht.Metadata;
 
 namespace Weberknecht;
 
-public struct Instruction
+public partial struct Instruction
 {
 
     public readonly OpCode OpCode { get; init; } = OpCodes.Nop;
@@ -53,16 +53,22 @@ public struct Instruction
         public static implicit operator UnmanagedOperand(double value) => new() { @double = value };
     }
 
-    internal Instruction(OpCode code, object? operand, UnmanagedOperand uoperand)
+    internal Instruction(OpCode opCode) : this(opCode, null, default) { }
+
+    internal Instruction(OpCode opCode, UnmanagedOperand operand) : this(opCode, null, operand) { }
+
+    internal Instruction(OpCode opCode, object operand) : this(opCode, operand, default) { }
+
+    internal Instruction(OpCode opCode, object? operand, UnmanagedOperand uoperand)
     {
-        OpCode = code;
+        OpCode = opCode;
         _operand = operand;
         _uoperand = uoperand;
     }
 
     public override readonly string ToString() => new StringBuilder().Append(in this).ToString();
 
-    internal void Emit(ILGenerator il, ReadOnlySpan<Label> labels, ReadOnlySpan<LocalBuilder> locals)
+    internal readonly void Emit(ILGenerator il, ReadOnlySpan<Label> labels, ReadOnlySpan<LocalBuilder> locals)
     {
         switch (OpCode.OperandType)
         {
