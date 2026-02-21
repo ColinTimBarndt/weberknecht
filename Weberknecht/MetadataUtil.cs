@@ -15,13 +15,16 @@ internal static class MetadataUtil
 
     extension(Assembly asm)
     {
-        public unsafe MetadataReader? GetMetadataReader()
+        public MetadataReader? GetMetadataReader()
         {
             return _metadata.GetOrAdd(asm, static (asm) =>
             {
-                if (!asm.TryGetRawMetadata(out byte* blob, out int length))
-                    return null;
-                return new MetadataReader(blob, length);
+                unsafe
+                {
+                    if (!asm.TryGetRawMetadata(out byte* blob, out int length))
+                        return null;
+                    return new MetadataReader(blob, length);
+                }
             });
         }
 
