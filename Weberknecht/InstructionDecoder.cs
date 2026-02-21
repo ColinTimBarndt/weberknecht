@@ -21,8 +21,8 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
 
     public bool MoveNext()
     {
-        if (_index >= _data.Length) return false;
         CurrentAddress = _index;
+        if (_index >= _data.Length) return false;
         int code = _data[_index++];
         if (code == 0xFE)
         {

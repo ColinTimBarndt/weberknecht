@@ -6,30 +6,21 @@ using System.Text;
 
 namespace Weberknecht;
 
-public partial class Method
+using RLabel = System.Reflection.Emit.Label;
+
+public partial class Method(Type returnType)
 {
 
-    private readonly List<Type> _genericArguments;
-    private readonly List<Parameter> _parameters;
-    private readonly List<LocalVariable> _localVariables;
-    private readonly List<PseudoInstruction> _instructions;
-    private int _labelCount;
+    private readonly List<Type> _genericArguments = [];
+    private readonly List<Parameter> _parameters = [];
+    private readonly List<LocalVariable> _localVariables = [];
+    private readonly List<PseudoInstruction> _instructions = [];
+    private List<ExceptionHandlingClause>? _exceptionHandlers = null;
+    private int _labelCount = 0;
 
-    public Type ReturnType { get; }
+    public Type ReturnType { get; } = returnType;
 
     public ReadOnlyCollection<PseudoInstruction> Instructions => _instructions.AsReadOnly();
-
-    public Method(Type returnType) : this(returnType, [], [], [], [], 0) { }
-
-    internal Method(Type returnType, List<Type> genericArguments, List<Parameter> parameters, List<LocalVariable> localVariables, List<PseudoInstruction> instrs, int labelCount)
-    {
-        _genericArguments = genericArguments;
-        _parameters = parameters;
-        _localVariables = localVariables;
-        _instructions = instrs;
-        ReturnType = returnType;
-        _labelCount = labelCount;
-    }
 
     public readonly struct Parameter(string? name, Type type, ParameterModifier mod)
     {
@@ -93,7 +84,7 @@ public partial class Method
 
     public void Emit(ILGenerator il)
     {
-        Label[] labels = new Label[_labelCount];
+        RLabel[] labels = new RLabel[_labelCount];
         for (int i = 0; i < _labelCount; i++)
             labels[i] = il.DefineLabel();
 
@@ -114,7 +105,7 @@ public partial class Method
                     continue;
 
                 case PseudoInstructionType.Label:
-                    il.MarkLabel(labels[instr.AsLabelRef() - 1]);
+                    il.MarkLabel(labels[(int)instr.AsLabel() - 1]);
                     continue;
 
                 default:
@@ -150,6 +141,11 @@ public partial class Method
                 builder.Append("\n.locals (")
                     .AppendJoin(", ", _localVariables)
                     .Append(')');
+            }
+            if (_exceptionHandlers != null)
+            {
+                builder.Append('\n')
+                    .AppendJoin('\n', _exceptionHandlers);
             }
             foreach (var pinstr in _instructions)
             {

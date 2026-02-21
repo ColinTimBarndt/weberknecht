@@ -33,21 +33,12 @@ public struct PseudoInstruction()
 
 	public static PseudoInstruction Label(int label) => new(label);
 
-	public static PseudoInstruction Try() => new(PseudoInstructionType.Try);
-
-	public static PseudoInstruction Catch() => new(PseudoInstructionType.Catch);
-
-	public static PseudoInstruction Finally() => new(PseudoInstructionType.Finally);
-
 }
 
 public enum PseudoInstructionType : byte
 {
 	Instruction,
 	Label,
-	Try,
-	Catch,
-	Finally,
 }
 
 // Extension class to receive 'this' by ref
@@ -68,18 +59,18 @@ public static class PseudoInstructionExt
 		return self._instruction;
 	}
 
-	public static ref int AsLabelRef(ref this PseudoInstruction self)
+	public static ref Label AsLabelRef(ref this PseudoInstruction self)
 	{
 		if (self.Type != PseudoInstructionType.Label)
 			throw new InvalidOperationException();
-		return ref self._label;
+		return ref Label.CastRef(ref self._label);
 	}
 
-	public static int AsLabel(this PseudoInstruction self)
+	public static Label AsLabel(this PseudoInstruction self)
 	{
 		if (self.Type != PseudoInstructionType.Label)
 			throw new InvalidOperationException();
-		return self._label;
+		return (Label)self._label;
 	}
 
 	public static StringBuilder Append(this StringBuilder builder, in PseudoInstruction self)
@@ -87,10 +78,7 @@ public static class PseudoInstructionExt
 		return self.Type switch
 		{
 			PseudoInstructionType.Instruction => builder.Append(in self._instruction),
-			PseudoInstructionType.Label => builder.AppendFormat("L{0:X}:", self._label),
-			PseudoInstructionType.Try => builder.Append("try:"),
-			PseudoInstructionType.Catch => builder.Append("catch:"), //TODO
-			PseudoInstructionType.Finally => builder.Append("finally:"),
+			PseudoInstructionType.Label => builder.AppendLabel(self.AsLabel()).Append(':'),
 			_ => throw new NotImplementedException(Enum.GetName(self.Type)),
 		};
 	}

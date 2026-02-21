@@ -6,6 +6,8 @@ using Weberknecht.Metadata;
 
 namespace Weberknecht;
 
+using RLabel = System.Reflection.Emit.Label;
+
 public partial struct Instruction
 {
 
@@ -68,7 +70,7 @@ public partial struct Instruction
 
     public override readonly string ToString() => new StringBuilder().Append(in this).ToString();
 
-    internal readonly void Emit(ILGenerator il, ReadOnlySpan<Label> labels, ReadOnlySpan<LocalBuilder> locals)
+    internal readonly void Emit(ILGenerator il, ReadOnlySpan<RLabel> labels, ReadOnlySpan<LocalBuilder> locals)
     {
         switch (OpCode.OperandType)
         {

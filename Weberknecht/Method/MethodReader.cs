@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Reflection.Metadata;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Weberknecht;
@@ -38,6 +39,9 @@ public partial class Method
             instructions.Add(il.Current);
         }
 
+        instructions.Add(PseudoInstruction.Label(0)); // Placeholder
+        jumpTable.Add(il.CurrentAddress, instructions.Count);
+
         Span<PseudoInstruction> instructionsSpan = CollectionsMarshal.AsSpan(instructions);
 
         // Assigns values to the interleaved labels when used
@@ -48,20 +52,33 @@ public partial class Method
             if (instr.OpCode.OperandType is not OperandType.InlineBrTarget and not OperandType.ShortInlineBrTarget)
                 continue;
 
-            var targetIndex = jumpTable[instr._uoperand.@int];
-            ref var target = ref instructionsSpan[targetIndex - 1].AsLabelRef();
-            if (target == 0)
-            {
-                // New label
-                instr._uoperand.@int = ++lastLabel;
-                target = lastLabel;
-            }
-            else
-            {
-                instr._uoperand.@int = target;
-            }
+            instr._uoperand.@int = (int)Internal_ReadGetLabel(ref lastLabel, instructionsSpan, jumpTable, offset: instr._uoperand.@int);
         }
         instance._labelCount = lastLabel;
+
+        if (body.ExceptionHandlingClauses.Count > 0)
+        {
+            List<ExceptionHandlingClause> clauses = [];
+            instance._exceptionHandlers = clauses;
+
+            foreach (var clause in body.ExceptionHandlingClauses)
+            {
+                LabelRange @try = Internal_ReadGetLabelRange(ref lastLabel, instructionsSpan, jumpTable, clause.TryOffset, clause.TryLength);
+                LabelRange handler = Internal_ReadGetLabelRange(ref lastLabel, instructionsSpan, jumpTable, clause.HandlerOffset, clause.HandlerLength);
+
+                clauses.Add(clause.Flags switch
+                {
+                    ExceptionHandlingClauseOptions.Clause => ExceptionHandlingClause.Clause(clause.CatchType!, @try, handler),
+                    ExceptionHandlingClauseOptions.Filter => ExceptionHandlingClause.Filter(
+                        Internal_ReadGetLabel(ref lastLabel, instructionsSpan, jumpTable, clause.FilterOffset),
+                        @try, handler
+                    ),
+                    ExceptionHandlingClauseOptions.Finally => ExceptionHandlingClause.Finally(@try, handler),
+                    ExceptionHandlingClauseOptions.Fault => ExceptionHandlingClause.Fault(@try, handler),
+                    _ => throw new NotImplementedException(Enum.GetName(clause.Flags)),
+                });
+            }
+        }
 
         var debugMetadata = assembly.GetDebugMetadataReader();
         Dictionary<int, string>? localNames = null;
@@ -90,7 +107,7 @@ public partial class Method
 
         instructionsSpan = default; // Ensure span is not used
         // Remove unused interleaved labels
-        instructions.RemoveAll(instr => instr.Type == PseudoInstructionType.Label && instr.AsLabel() == 0);
+        instructions.RemoveAll(instr => instr.Type == PseudoInstructionType.Label && instr.AsLabel().IsNull);
 
         instance._localVariables.EnsureCapacity(body.LocalVariables.Count);
         for (int i = 0; i < body.LocalVariables.Count; i++)
@@ -118,6 +135,22 @@ public partial class Method
         instance._genericArguments.AddRange(method.GetGenericArguments());
 
         return instance;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Label Internal_ReadGetLabel(ref int lastLabel, Span<PseudoInstruction> instructions, Dictionary<int, int> jumpTable, int offset)
+    {
+        ref var target = ref instructions[jumpTable[offset] - 1].AsLabelRef();
+
+        return target.IsNull ? target = (Label)(++lastLabel) : target;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static LabelRange Internal_ReadGetLabelRange(ref int lastLabel, Span<PseudoInstruction> instructions, Dictionary<int, int> jumpTable, int offset, int length)
+    {
+        var start = Internal_ReadGetLabel(ref lastLabel, instructions, jumpTable, offset);
+        var end = Internal_ReadGetLabel(ref lastLabel, instructions, jumpTable, offset + length);
+        return (start, end);
     }
 
 }
