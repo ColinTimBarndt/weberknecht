@@ -79,6 +79,9 @@ public class Method
 
     public DynamicMethod MakeDynamicMethod(string name)
     {
+        if (_genericArguments.Count != 0)
+            throw new InvalidOperationException("Dynamic methods can't be generic");
+
         var method = new DynamicMethod(name, ReturnType, [.. _parameters.Select(p => p.Type)], restrictedSkipVisibility: true);
         Emit(method.GetILGenerator());
         return method;
