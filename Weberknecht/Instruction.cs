@@ -224,6 +224,7 @@ public static class InstructionExt
             return self._operand switch
             {
                 string s => FormatLiteral(builder, s),
+                FieldInfo field => FormatField(builder, field),
                 MethodInfo method => FormatMethod(builder, method),
                 ConstructorInfo ctor => FormatConstructor(builder, ctor),
                 _ => builder.Append(self._operand),
@@ -279,6 +280,18 @@ public static class InstructionExt
             }
         }
         builder.Append('"');
+        return builder;
+    }
+
+    private static StringBuilder FormatField(StringBuilder builder, FieldInfo field)
+    {
+        builder.Append(field.FieldType).Append(' ');
+
+        if (field.DeclaringType is Type declType)
+            builder.Append(declType.Name).Append("::");
+
+        builder.Append(field.Name);
+
         return builder;
     }
 
