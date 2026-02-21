@@ -102,7 +102,12 @@ public static class MethodReader
         List<Method.Parameter> parameters = new(parameterInfos.Length + (method.IsStatic ? 0 : 1));
 
         if (!method.IsStatic)
-            parameters.Add(new(null, method.DeclaringType!, Method.ParameterModifier.None));
+        {
+            Type declType = method.DeclaringType!;
+            if (declType.IsValueType)
+                declType = declType.MakeByRefType();
+            parameters.Add(new(null, declType, Method.ParameterModifier.None));
+        }
 
         for (int i = 0; i < parameterInfos.Length; i++)
             parameters.Add(parameterInfos[i]);
