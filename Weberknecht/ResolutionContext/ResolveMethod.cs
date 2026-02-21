@@ -68,14 +68,6 @@ internal sealed partial class ResolutionContext
 
     private static MethodBase ResolveMethod(Type type, string name, SignatureHeader header, int mvarCount, MethodSignature<Type> sig)
     {
-        if (name == ".ctor" || name == ".cctor")
-        {
-            var ctor = type.GetConstructor(bindingAttr: MetadataUtil.GetBindingFlags(header), binder: null, types: [.. sig.ParameterTypes], modifiers: null)
-                ?? throw new NullReferenceException();
-
-            return ctor;
-        }
-
         var method = type.GetMethod(
             name,
             mvarCount,
@@ -84,12 +76,20 @@ internal sealed partial class ResolutionContext
             callConvention: MetadataUtil.GetCallingConventions(header),
             types: [.. sig.ParameterTypes],
             modifiers: null
-        ) ?? throw new NullReferenceException();
+        );
 
-        if (method.ReturnType != sig.ReturnType)
-            throw new Exception();
+        if (method != null)
+        {
+            if (method.ReturnType != sig.ReturnType)
+                throw new Exception();
 
-        return method;
+            return method;
+        }
+
+        var ctor = type.GetConstructor(bindingAttr: MetadataUtil.GetBindingFlags(header), binder: null, types: [.. sig.ParameterTypes], modifiers: null)
+                ?? throw new MissingMethodException(type.Name, name);
+
+        return ctor;
     }
 
 }
