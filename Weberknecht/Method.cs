@@ -89,7 +89,7 @@ public partial class Method(Type returnType)
             throw new InvalidOperationException("Dynamic methods can't be generic");
 
         var method = new DynamicMethod(name, ReturnType, [.. _parameters.Select(p => p.Type)], restrictedSkipVisibility: true);
-        //var method = new DynamicMethod(name, MethodAttributes.Public | MethodAttributes.Static, CallingConventions.Standard, ReturnType, [.. _parameters.Select(p => p.Type)], owner: typeof(Method), skipVisibility: true);
+        //var method = new DynamicMethod(name, ReturnType, [.. _parameters.Select(p => p.Type)]);
 
         var info = method.GetDynamicILInfo();
 
@@ -98,8 +98,7 @@ public partial class Method(Type returnType)
         int[] labels = new int[_labelCount];
         info.SetCode(EncodeBody(labels, tokens), 64); // TODO: Control Flow Graph analysis
 
-        if (_localVariables.Count > 0)
-            info.SetLocalSignature(EncodeLocalSignature(tokens));
+        info.SetLocalSignature(EncodeLocalSignature());
 
         if (_exceptionHandlers != null)
             info.SetExceptions(ExceptionHandlingClause.EncodeExceptionHandlers(CollectionsMarshal.AsSpan(_exceptionHandlers), labels, tokens));
@@ -134,13 +133,11 @@ public partial class Method(Type returnType)
             switch (instr.Type)
             {
                 case PseudoInstructionType.Instruction:
-                    Console.WriteLine($"  {instr.AsInstructionRef()}");
                     instr.AsInstructionRef().Emit(il, labels, locals);
                     continue;
 
                 case PseudoInstructionType.Label:
                     var label = instr.AsLabel();
-                    Console.WriteLine($"Label: {label}");
                     clauseHelper.OnMarkLabel(label, il);
                     il.MarkLabel(labels[(int)label - 1]);
                     continue;
@@ -167,18 +164,13 @@ public partial class Method(Type returnType)
 
         foreach (var pinstr in _instructions)
         {
-            switch (pinstr.Type)
+            if (pinstr.Type == PseudoInstructionType.Instruction)
             {
-                case PseudoInstructionType.Instruction:
-                    encoder.Emit(pinstr.AsInstruction());
-                    continue;
-
-                case PseudoInstructionType.Label:
-                    labels[pinstr.AsLabel()] = encoder.CurrentAddress;
-                    continue;
-
-                default:
-                    throw new NotImplementedException(Enum.GetName(pinstr.Type));
+                encoder.Emit(pinstr.AsInstruction());
+            }
+            else
+            { // Label
+                labels[pinstr.AsLabel()] = encoder.CurrentAddress;
             }
         }
 
@@ -225,7 +217,7 @@ public partial class Method(Type returnType)
                 if (pinstr.Type is PseudoInstructionType.Instruction)
                 {
                     var instr = pinstr.AsInstruction();
-                    if (debugInfo && instr.DebugInfo is Metadata.SequencePoint seq)
+                    if (debugInfo && instr.DebugInfo is SequencePoint seq)
                     {
                         builder.Append($"\n@ {seq}");
                     }

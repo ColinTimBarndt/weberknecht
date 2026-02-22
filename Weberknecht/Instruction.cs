@@ -70,7 +70,7 @@ public partial struct Instruction
 
     public override readonly string ToString() => new StringBuilder().Append(in this).ToString();
 
-    public int EncodedSize => (OpCode.Value > 255 ? 2 : 1) + OpCode.OperandType.Size;
+    public int EncodedSize => ((ushort)OpCode.Value > 255 ? 2 : 1) + OpCode.OperandType.Size;
 
     internal readonly void Emit(ILGenerator il, ReadOnlySpan<RLabel> labels, ReadOnlySpan<LocalBuilder> locals)
     {

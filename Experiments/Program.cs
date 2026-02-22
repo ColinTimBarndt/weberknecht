@@ -6,10 +6,9 @@
         int c = a + b;
         try
         {
-            Console.WriteLine($"c = {c}");
             if (c > 0)
                 throw new Exception();
-            return c + c + c;
+            return c;
         }
         catch
         {
@@ -20,12 +19,12 @@
     var method = Method.Read(original);
     Console.WriteLine(method);
 
-    var dynMethod = method.MakeDynamicMethod("Add");
+    var dynMethod = method.MakeDynamicMethod2("Add");
+
     var dynDelegate = dynMethod.CreateDelegate<Func<int, int, int>>();
     Console.WriteLine($"{original(1, 2)} = {dynDelegate(1, 2)}");
 }
 
-/*
 {
     var method = Method.Read(typeof(TestClass).GetMethod(nameof(TestClass.Print))!);
     Console.WriteLine(method.ToString(debugInfo: true));
@@ -43,13 +42,11 @@
 
     Console.WriteLine(method);
 
-    var dynMethod = method.MakeDynamicMethod("Test");
+    var dynMethod = method.MakeDynamicMethod2("Test");
 
     var dynDelegate = dynMethod.CreateDelegate<MyMethod>(original.Target);
     Console.WriteLine($"{original(42)} = {dynDelegate(42)}");
 }
-
-*/
 
 {
     var method = Method.Read(() =>
@@ -76,7 +73,7 @@
         }
     });
     Console.WriteLine(method);
-    method.MakeDynamicMethod("Test");
+    method.MakeDynamicMethod2("Test");
 }
 
 delegate int MyMethod(in int a);

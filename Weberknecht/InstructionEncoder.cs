@@ -19,7 +19,7 @@ where T : ITokenSource
 
 	public void Emit(Instruction instruction)
 	{
-		bool small = instruction.OpCode.Value <= 255;
+		bool small = (ushort)instruction.OpCode.Value <= 255;
 		if (small)
 			_buffer[_index] = (byte)instruction.OpCode.Value;
 		else

@@ -94,6 +94,23 @@ public readonly ref struct LabelAddressMap(Span<int> map)
 
 	public (int, int) this[LabelRange range] => (this[range.Start], this[range.End]);
 
+	public override readonly string ToString()
+	{
+		if (_addresses.Length == 0)
+			return "{}";
+
+		StringBuilder builder = new("{ ");
+		for (int i = 0; i < _addresses.Length; i++)
+		{
+			if (i != 0)
+				builder.Append(", ");
+			builder.Append(new Label(i + 1)).Append(" => ").Append(_addresses[i].ToString("X04"));
+		}
+		builder.Append(" }");
+
+		return builder.ToString();
+	}
+
 	public static implicit operator LabelAddressMap(Span<int> map) => new(map);
 
 }
