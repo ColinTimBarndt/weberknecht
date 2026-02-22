@@ -79,3 +79,21 @@ public static class LabelExt
 	}
 
 }
+
+public readonly ref struct LabelAddressMap(Span<int> map)
+{
+
+	private readonly Span<int> _addresses = map;
+
+	public int this[Label label]
+	{
+		get => _addresses[label.Id - 1];
+
+		set => _addresses[label.Id - 1] = value;
+	}
+
+	public (int, int) this[LabelRange range] => (this[range.Start], this[range.End]);
+
+	public static implicit operator LabelAddressMap(Span<int> map) => new(map);
+
+}

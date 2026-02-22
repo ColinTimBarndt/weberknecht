@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Text;
+using Weberknecht.Metadata;
 
 namespace Weberknecht;
 
@@ -82,11 +83,42 @@ public partial class Method(Type returnType)
         return method;
     }
 
+    public DynamicMethod MakeDynamicMethod2(string name)
+    {
+        if (_genericArguments.Count != 0)
+            throw new InvalidOperationException("Dynamic methods can't be generic");
+
+        var method = new DynamicMethod(name, ReturnType, [.. _parameters.Select(p => p.Type)], restrictedSkipVisibility: true);
+        //var method = new DynamicMethod(name, MethodAttributes.Public | MethodAttributes.Static, CallingConventions.Standard, ReturnType, [.. _parameters.Select(p => p.Type)], owner: typeof(Method), skipVisibility: true);
+
+        var info = method.GetDynamicILInfo();
+
+        var tokens = TokenSource.Create(info);
+
+        int[] labels = new int[_labelCount];
+        info.SetCode(EncodeBody(labels, tokens), 64); // TODO: Control Flow Graph analysis
+
+        if (_localVariables.Count > 0)
+            info.SetLocalSignature(EncodeLocalSignature(tokens));
+
+        if (_exceptionHandlers != null)
+            info.SetExceptions(ExceptionHandlingClause.EncodeExceptionHandlers(CollectionsMarshal.AsSpan(_exceptionHandlers), labels, tokens));
+
+        return method;
+    }
+
     public void Emit(ILGenerator il)
     {
         RLabel[] labels = new RLabel[_labelCount];
         for (int i = 0; i < _labelCount; i++)
             labels[i] = il.DefineLabel();
+
+        Dictionary<Label, ExceptionHandlingClause> startClauses = [];
+        if (_exceptionHandlers != null)
+        {
+            foreach (var clause in _exceptionHandlers)
+                startClauses[clause.Try.Start] = clause;
+        }
 
         LocalBuilder[] locals = new LocalBuilder[_localVariables.Count];
         for (int i = 0; i < locals.Length; i++)
@@ -96,22 +128,63 @@ public partial class Method(Type returnType)
         }
 
         Span<PseudoInstruction> instrs = CollectionsMarshal.AsSpan(_instructions);
+        ExceptionHandlingClauseHelper clauseHelper = new(CollectionsMarshal.AsSpan(_exceptionHandlers));
         foreach (ref var instr in instrs)
         {
             switch (instr.Type)
             {
                 case PseudoInstructionType.Instruction:
+                    Console.WriteLine($"  {instr.AsInstructionRef()}");
                     instr.AsInstructionRef().Emit(il, labels, locals);
                     continue;
 
                 case PseudoInstructionType.Label:
-                    il.MarkLabel(labels[(int)instr.AsLabel() - 1]);
+                    var label = instr.AsLabel();
+                    Console.WriteLine($"Label: {label}");
+                    clauseHelper.OnMarkLabel(label, il);
+                    il.MarkLabel(labels[(int)label - 1]);
                     continue;
 
                 default:
-                    throw new NotImplementedException(); // TODO
+                    throw new NotImplementedException(Enum.GetName(instr.Type));
             }
         }
+    }
+
+    private byte[] EncodeBody<T>(LabelAddressMap labels, T tokens)
+    where T : ITokenSource
+    {
+        int size = 0;
+        foreach (var pinstr in _instructions)
+        {
+            if (pinstr.Type == PseudoInstructionType.Instruction)
+                size += pinstr.AsInstruction().EncodedSize;
+        }
+
+        byte[] buffer = new byte[size];
+
+        InstructionEncoder<T> encoder = new(buffer.AsSpan(), tokens);
+
+        foreach (var pinstr in _instructions)
+        {
+            switch (pinstr.Type)
+            {
+                case PseudoInstructionType.Instruction:
+                    encoder.Emit(pinstr.AsInstruction());
+                    continue;
+
+                case PseudoInstructionType.Label:
+                    labels[pinstr.AsLabel()] = encoder.CurrentAddress;
+                    continue;
+
+                default:
+                    throw new NotImplementedException(Enum.GetName(pinstr.Type));
+            }
+        }
+
+        encoder.WriteLabels(labels);
+
+        return buffer;
     }
 
     public override string ToString() => ToString(false);

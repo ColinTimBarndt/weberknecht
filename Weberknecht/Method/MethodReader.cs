@@ -54,7 +54,6 @@ public partial class Method
 
             instr._uoperand.@int = (int)Internal_ReadGetLabel(ref lastLabel, instructionsSpan, jumpTable, offset: instr._uoperand.@int);
         }
-        instance._labelCount = lastLabel;
 
         if (body.ExceptionHandlingClauses.Count > 0)
         {
@@ -119,9 +118,11 @@ public partial class Method
         }
 
         var parameterInfos = method.GetParameters();
-        instance._parameters.EnsureCapacity(parameterInfos.Length + (method.IsStatic ? 0 : 1));
+        bool implicitThis = method.CallingConvention.HasFlag(CallingConventions.HasThis) && !method.CallingConvention.HasFlag(CallingConventions.ExplicitThis);
+        instance._parameters.EnsureCapacity(parameterInfos.Length + (implicitThis ? 1 : 0));
 
-        if (!method.IsStatic)
+        // ECMA-335 1.8.6.1.5
+        if (implicitThis)
         {
             Type declType = method.DeclaringType!;
             if (declType.IsValueType)
@@ -133,6 +134,7 @@ public partial class Method
             instance._parameters.Add(parameterInfos[i]);
 
         instance._genericArguments.AddRange(method.GetGenericArguments());
+        instance._labelCount = lastLabel;
 
         return instance;
     }

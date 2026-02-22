@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Collections;
 using System.Diagnostics;
 using System.Reflection.Emit;
@@ -41,22 +42,22 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
         //Console.WriteLine(operandType);
         ValueTuple<object?, Instruction.UnmanagedOperand> immediate = operandType switch
         {
-            OperandType.InlineBrTarget => (null, BitConverter.ToInt32(immData) + _index),
+            OperandType.InlineBrTarget => (null, BinaryPrimitives.ReadInt32LittleEndian(immData) + _index),
             OperandType.InlineField => (GetTok(GetHandle(immData), EntityType.Field), default),
             OperandType.InlineMethod => (GetTok(GetHandle(immData), EntityType.Method), default),
             OperandType.InlineType => (GetTok(GetHandle(immData), EntityType.Type), default),
             OperandType.InlineTok => (GetTok(GetHandle(immData), EntityType.Type | EntityType.Method | EntityType.Field), default),
             OperandType.InlineSwitch => throw new NotImplementedException("switch"),
-            OperandType.InlineI => (null, BitConverter.ToInt32(immData)),
+            OperandType.InlineI => (null, BinaryPrimitives.ReadInt32LittleEndian(immData)),
             OperandType.InlineSig => (GetSignature((StandaloneSignatureHandle)GetHandle(immData)), default),
             OperandType.InlineString => (_ctx.Meta.GetUserString((UserStringHandle)GetHandle(immData)), default),
-            OperandType.InlineI8 => (null, BitConverter.ToInt64(immData)),
+            OperandType.InlineI8 => (null, BinaryPrimitives.ReadInt64LittleEndian(immData)),
             OperandType.InlineNone => default,
-            OperandType.InlineR => (null, BitConverter.ToDouble(immData)),
-            OperandType.InlineVar => (null, BitConverter.ToUInt16(immData)),
+            OperandType.InlineR => (null, BinaryPrimitives.ReadDoubleLittleEndian(immData)),
+            OperandType.InlineVar => (null, BinaryPrimitives.ReadUInt16LittleEndian(immData)),
             OperandType.ShortInlineBrTarget => (null, (sbyte)immData[0] + _index),
             OperandType.ShortInlineI => (null, (sbyte)immData[0]),
-            OperandType.ShortInlineR => (null, BitConverter.ToSingle(immData)),
+            OperandType.ShortInlineR => (null, BinaryPrimitives.ReadSingleLittleEndian(immData)),
             OperandType.ShortInlineVar => (null, immData[0]),
             _ => throw new UnreachableException(),
         };
