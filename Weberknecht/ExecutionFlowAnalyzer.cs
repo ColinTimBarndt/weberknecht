@@ -44,7 +44,6 @@ internal static class ExecutionFlowAnalyzer
         }
 
         stackSize[0] = 1;
-        work.Push(0);
 
         return InternalGetMaxStackSize(instructions, labelTargets, work, stackSize, returnSize);
         // var result = InternalGetMaxStackSize(instructions, labelTargets, work, stackSize, returnSize);
@@ -67,8 +66,9 @@ internal static class ExecutionFlowAnalyzer
         )
     {
         StackSizeResult result;
+        int index = 0;
 
-        while (work.TryPop(out int index))
+        do
         {
         Start:
             ref readonly var psinstruction = ref instructions[index];
@@ -149,7 +149,7 @@ internal static class ExecutionFlowAnalyzer
                     return StackSizeResult.Err(index);
 #endif
             }
-        }
+        } while (work.TryPop(out index));
 
         int maxSize = 0;
         foreach (int currentSize in stackSize)
