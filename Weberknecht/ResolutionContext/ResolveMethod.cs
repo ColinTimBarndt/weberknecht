@@ -49,7 +49,7 @@ internal sealed partial class ResolutionContext
 
         var gctx = new GenericContext(type.GetGenericArguments(), mvarCount);
         var sig = memberRef.DecodeMethodSignature(this, gctx);
-        return ResolveMethod(type, Meta.GetString(memberRef.Name), header, mvarCount, sig);
+        return ResolveMethod(type, Meta.GetString(memberRef.Name), mvarCount, sig);
     }
 
     public MethodBase ResolveMethodHandle(MethodDefinitionHandle handle)
@@ -63,17 +63,17 @@ internal sealed partial class ResolutionContext
 
         var gctx = new GenericContext(type.GetGenericArguments(), mvarCount);
         var sig = methodDef.DecodeSignature(this, gctx);
-        return ResolveMethod(type, Meta.GetString(methodDef.Name), header, mvarCount, sig);
+        return ResolveMethod(type, Meta.GetString(methodDef.Name), mvarCount, sig);
     }
 
-    private static MethodBase ResolveMethod(Type type, string name, SignatureHeader header, int mvarCount, MethodSignature<Type> sig)
+    private static MethodBase ResolveMethod(Type type, string name, int mvarCount, MethodSignature<Type> sig)
     {
         var method = type.GetMethod(
             name,
             mvarCount,
             binder: null,
-            bindingAttr: MetadataUtil.GetBindingFlags(header),
-            callConvention: MetadataUtil.GetCallingConventions(header),
+            bindingAttr: MetadataUtil.GetBindingFlags(sig.Header),
+            callConvention: MetadataUtil.GetMethodCallingConventions(sig.Header),
             types: [.. sig.ParameterTypes],
             modifiers: null
         );
@@ -86,7 +86,7 @@ internal sealed partial class ResolutionContext
             return method;
         }
 
-        var ctor = type.GetConstructor(bindingAttr: MetadataUtil.GetBindingFlags(header), binder: null, types: [.. sig.ParameterTypes], modifiers: null)
+        var ctor = type.GetConstructor(bindingAttr: MetadataUtil.GetBindingFlags(sig.Header), binder: null, types: [.. sig.ParameterTypes], modifiers: null)
                 ?? throw new MissingMethodException(type.Name, name);
 
         return ctor;

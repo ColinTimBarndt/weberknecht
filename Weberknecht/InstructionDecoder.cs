@@ -49,7 +49,7 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
             OperandType.InlineTok => (GetTok(GetHandle(immData), EntityType.Type | EntityType.Method | EntityType.Field), default),
             OperandType.InlineSwitch => throw new NotImplementedException("switch"),
             OperandType.InlineI => (null, BinaryPrimitives.ReadInt32LittleEndian(immData)),
-            OperandType.InlineSig => (GetSignature((StandaloneSignatureHandle)GetHandle(immData)), default),
+            OperandType.InlineSig => (_ctx.ResolveMethodSignatureHandle((StandaloneSignatureHandle)GetHandle(immData)), default),
             OperandType.InlineString => (_ctx.Meta.GetUserString((UserStringHandle)GetHandle(immData)), default),
             OperandType.InlineI8 => (null, BinaryPrimitives.ReadInt64LittleEndian(immData)),
             OperandType.InlineNone => default,
@@ -93,24 +93,6 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
             SignatureKind.Field when allowed.HasFlag(EntityType.Field) => _ctx.ResolveField(member),
             _ => throw new InvalidDataException(),
         };
-    }
-
-    private readonly object GetSignature(StandaloneSignatureHandle handle) => GetSignature(_ctx.Meta.GetStandaloneSignature(handle));
-
-    private readonly object GetSignature(StandaloneSignature sig)
-    {
-        switch (sig.GetKind())
-        {
-            case StandaloneSignatureKind.Method:
-                break;
-
-            case StandaloneSignatureKind.LocalVariables:
-                break;
-
-            default:
-                throw new NotImplementedException(Enum.GetName(sig.GetKind()));
-        }
-        throw new NotImplementedException(); // TODO
     }
 
     public void Reset()

@@ -118,18 +118,15 @@ internal static class MetadataUtil
         return flags;
     }
 
-    public static CallingConventions GetCallingConventions(SignatureHeader header)
+    public static CallingConventions GetMethodCallingConventions(SignatureHeader header)
     {
         var conv = header.CallingConvention switch
         {
-            SignatureCallingConvention.Default => CallingConventions.Standard,
-            SignatureCallingConvention.CDecl => CallingConventions.Any,
-            SignatureCallingConvention.StdCall => CallingConventions.Any,
-            SignatureCallingConvention.ThisCall => CallingConventions.Standard | CallingConventions.HasThis,
-            SignatureCallingConvention.FastCall => throw new NotSupportedException(),
+            SignatureCallingConvention.Default => header.IsInstance
+                ? CallingConventions.HasThis
+                : CallingConventions.Standard,
             SignatureCallingConvention.VarArgs => CallingConventions.VarArgs,
-            SignatureCallingConvention.Unmanaged => CallingConventions.Any,
-            _ => throw new NotSupportedException()
+            _ => throw new UnsupportedCallingConventionException(header.CallingConvention),
         };
         if (header.HasExplicitThis) conv |= CallingConventions.ExplicitThis;
         return conv;

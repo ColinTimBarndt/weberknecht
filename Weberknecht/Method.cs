@@ -21,7 +21,7 @@ public partial class Method(Type returnType)
 
     public Type ReturnType { get; } = returnType;
 
-    public ReadOnlyCollection<PseudoInstruction> Instructions => _instructions.AsReadOnly();
+    public IReadOnlyCollection<PseudoInstruction> Instructions => _instructions.AsReadOnly();
 
     public struct GenericParameter(string name, GenericParameterAttributes attributes)
     {

@@ -70,7 +70,7 @@ public partial struct Instruction
 
     public override readonly string ToString() => new StringBuilder().Append(in this).ToString();
 
-    public int EncodedSize => ((ushort)OpCode.Value > 255 ? 2 : 1) + OpCode.OperandType.Size;
+    public readonly int EncodedSize => ((ushort)OpCode.Value > 255 ? 2 : 1) + OpCode.OperandType.Size;
 
     internal readonly void Emit(ILGenerator il, ReadOnlySpan<RLabel> labels, ReadOnlySpan<LocalBuilder> locals)
     {
@@ -111,8 +111,8 @@ public partial struct Instruction
                 return;
 
             case OperandType.InlineSig:
-                //il.Emit(OpCode, SignatureHelper.);
-                throw new NotImplementedException("InlineSig"); // TODO
+                il.Emit(OpCode, ((MethodSignature)_operand!).GetHelper());
+                return;
 
             case OperandType.InlineString:
                 il.Emit(OpCode, (string)_operand!);

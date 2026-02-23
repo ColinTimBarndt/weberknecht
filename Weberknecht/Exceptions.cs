@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Reflection.Metadata;
 
 namespace Weberknecht;
 
@@ -72,6 +73,46 @@ public sealed class UnsupportedHashAlgorithmException : MetadataException
     internal UnsupportedHashAlgorithmException(Guid algorithm) : base($"Unsupported hash algorithm {{{algorithm}}}")
     {
         HashAlgorithm = algorithm;
+    }
+
+}
+
+public sealed class InvalidStandaloneSignatureKindException : MetadataException
+{
+
+    public StandaloneSignatureKind ExpectedSignatureKind { get; }
+
+    public StandaloneSignatureKind FoundSignatureKind { get; }
+
+    internal InvalidStandaloneSignatureKindException(
+        StandaloneSignatureKind expected,
+        StandaloneSignatureKind found)
+    : base($"Expected signature kind {Enum.GetName(expected)}, found {Enum.GetName(found)}")
+    {
+        ExpectedSignatureKind = found;
+        FoundSignatureKind = found;
+    }
+
+    internal static void Assert(
+        StandaloneSignatureKind expected,
+        StandaloneSignatureKind found)
+    {
+        if (expected != found)
+            throw new InvalidStandaloneSignatureKindException(expected, found);
+    }
+
+}
+
+public sealed class UnsupportedCallingConventionException : MetadataException
+{
+
+    public SignatureCallingConvention CallingConvention { get; }
+
+    internal UnsupportedCallingConventionException(
+        SignatureCallingConvention convention)
+    : base($"Unsupported calling convention: {Enum.GetName(convention)}")
+    {
+        CallingConvention = convention;
     }
 
 }
