@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.Immutable;
 using System.Reflection;
 using System.Reflection.Emit;
 using Weberknecht.Metadata;
@@ -13,7 +14,9 @@ where T : ITokenSource
     private readonly T _tokens = tokens;
 
     private int _index = 0;
-    private readonly List<(bool, int, Label)> _writeLabels = [];
+    private readonly List<LabelMarker> _writeLabels = [];
+
+    private readonly record struct LabelMarker(bool IsShort, int WriteOffset, int AnchorOffset, Label Label);
 
     public readonly int CurrentAddress => _index;
 
@@ -71,7 +74,8 @@ where T : ITokenSource
                 return;
 
             case OperandType.InlineSwitch:
-                throw new NotImplementedException("switch");
+                WriteJumpTable((ImmutableArray<Label>)instruction._operand!);
+                return;
 
             case OperandType.InlineTok:
                 WriteInt32(instruction._operand switch
@@ -103,27 +107,31 @@ where T : ITokenSource
 
     public readonly void WriteLabels(LabelAddressMap labels)
     {
-        foreach (var (isShort, index, label) in _writeLabels)
+        foreach (var marker in _writeLabels)
         {
-            int offset; // address of next instruction which the jump is relative to
-            if (isShort)
-            {
-                offset = index + 1;
-                _buffer[index] = (byte)(labels[label] - offset);
-            }
+            int relativeJump = labels[marker.Label] - marker.AnchorOffset;
+            if (marker.IsShort)
+                _buffer[marker.WriteOffset] = (byte)relativeJump;
             else
-            {
-                offset = index + 4;
-                BinaryPrimitives.WriteInt32LittleEndian(_buffer[index..], labels[label] - offset);
-            }
+                BinaryPrimitives.WriteInt32LittleEndian(_buffer[marker.WriteOffset..], relativeJump);
         }
         _writeLabels.Clear();
     }
 
     private void WriteLabel(Label label, bool isShort)
     {
-        _writeLabels.Add((isShort, _index, label));
+        int writeAt = _index;
         _index += isShort ? 1 : 4;
+        _writeLabels.Add(new(isShort, writeAt, _index, label));
+    }
+
+    private void WriteJumpTable(ImmutableArray<Label> labels)
+    {
+        WriteInt32(labels.Length);
+        int nextIndex = _index + 4 * labels.Length;
+        for (int i = 0; i < labels.Length; i++)
+            _writeLabels.Add(new(false, _index + 4 * i, nextIndex, labels[i]));
+        _index = nextIndex;
     }
 
     private void WriteUInt8(byte value)

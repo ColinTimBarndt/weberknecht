@@ -49,6 +49,14 @@ public partial class Method
         for (int i = 1; i < instructionsSpan.Length; i += 2)
         {
             ref var instr = ref instructionsSpan[i].AsInstructionRef();
+
+            if (instr.OpCode.OperandType is OperandType.InlineSwitch)
+            {
+                var offsets = (ImmutableArray<int>)instr._operand!;
+                instr._operand = Internal_ReadGetLabelArray(ref lastLabel, instructionsSpan, jumpTable, offsets);
+                continue;
+            }
+
             if (instr.OpCode.OperandType is not OperandType.InlineBrTarget and not OperandType.ShortInlineBrTarget)
                 continue;
 
@@ -143,7 +151,11 @@ public partial class Method
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Label Internal_ReadGetLabel(ref int lastLabel, Span<PseudoInstruction> instructions, Dictionary<int, int> jumpTable, int offset)
+    private static Label Internal_ReadGetLabel(
+        ref int lastLabel,
+        Span<PseudoInstruction> instructions,
+        Dictionary<int, int> jumpTable,
+        int offset)
     {
         ref var target = ref instructions[jumpTable[offset] - 1].AsLabelRef();
 
@@ -151,11 +163,29 @@ public partial class Method
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static LabelRange Internal_ReadGetLabelRange(ref int lastLabel, Span<PseudoInstruction> instructions, Dictionary<int, int> jumpTable, int offset, int length)
+    private static LabelRange Internal_ReadGetLabelRange(
+        ref int lastLabel,
+        Span<PseudoInstruction> instructions,
+        Dictionary<int, int> jumpTable,
+        int offset,
+        int length)
     {
         var start = Internal_ReadGetLabel(ref lastLabel, instructions, jumpTable, offset);
         var end = Internal_ReadGetLabel(ref lastLabel, instructions, jumpTable, offset + length);
         return (start, end);
     }
 
+    private static ImmutableArray<Label> Internal_ReadGetLabelArray(
+        ref int lastLabel,
+        Span<PseudoInstruction> instructions,
+        Dictionary<int, int> jumpTable,
+        ImmutableArray<int> offsets)
+    {
+        Span<Label> targets = stackalloc Label[offsets.Length];
+
+        for (int i = 0; i < offsets.Length; i++)
+            targets[i] = Internal_ReadGetLabel(ref lastLabel, instructions, jumpTable, offsets[i]);
+
+        return targets.ToImmutableArray();
+    }
 }

@@ -1,6 +1,42 @@
 using Weberknecht;
 
 {
+    Action<int> original = static (n) =>
+    {
+        switch (n)
+        {
+            case 2:
+                Console.WriteLine("aa");
+                return;
+            case 3:
+                Console.WriteLine("bbb");
+                return;
+            case 4:
+                Console.WriteLine(4);
+                return;
+            case 5:
+                Console.WriteLine(5);
+                return;
+            default:
+                Console.WriteLine("??");
+                return;
+        }
+    };
+    original(1);
+    original(2);
+    original(3);
+
+    var method = Method.Read(original);
+    Console.WriteLine(method);
+    var dynMethod = method.CreateDynamicMethod("Switcher");
+    var dynDelegate = dynMethod.CreateDelegate<Action<int>>();
+    dynDelegate(1);
+    dynDelegate(2);
+    dynDelegate(3);
+}
+
+/*
+{
     Func<int, int, int> original = static (int a, int b) =>
     {
         int c = a + b;
@@ -77,3 +113,4 @@ using Weberknecht;
 }
 
 delegate int MyMethod(in int a);
+*/

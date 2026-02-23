@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -116,12 +117,31 @@ internal static class ExecutionFlowAnalyzer
                     goto Next;
 
                 case FlowControl.Cond_Branch:
-                    target = labelTargets[(Label)instruction._uoperand.@int];
-                    if ((result = SetStackSize(stackSize, target, newSize)).IsError)
-                        return result;
-                    if (result.IsZero)
-                        work.Push(target);
-                    goto Next;
+                    switch (opcode.OperandType)
+                    {
+                        case OperandType.InlineBrTarget:
+                        case OperandType.ShortInlineBrTarget:
+                            target = labelTargets[(Label)instruction._uoperand.@int];
+                            if ((result = SetStackSize(stackSize, target, newSize)).IsError)
+                                return result;
+                            if (result.IsZero)
+                                work.Push(target);
+                            goto Next;
+
+                        case OperandType.InlineSwitch:
+                            foreach (var label in (ImmutableArray<Label>)instruction._operand!)
+                            {
+                                target = labelTargets[label];
+                                if ((result = SetStackSize(stackSize, target, newSize)).IsError)
+                                    return result;
+                                if (result.IsZero)
+                                    work.Push(target);
+                            }
+                            goto Next;
+
+                        default:
+                            goto Error;
+                    }
 
                 case FlowControl.Next:
                 Next:
@@ -134,19 +154,19 @@ internal static class ExecutionFlowAnalyzer
                 case FlowControl.Return:
                     int expectedSize = (ushort)opcode.Value == OpByteCodes.RET ? returnSize : 1;
                     if (newSize != expectedSize)
-                        return StackSizeResult.Err(index);
+                        goto Error;
                     continue;
 
                 case FlowControl.Throw:
                     if (newSize != 1)
-                        return StackSizeResult.Err(index);
+                        goto Error;
                     continue;
 
                 default:
 #if DEBUG
                     throw new NotImplementedException(Enum.GetName(opcode.FlowControl));
 #else
-                    return StackSizeResult.Err(index);
+                    goto Error;
 #endif
             }
         } while (work.TryPop(out index));
@@ -155,6 +175,8 @@ internal static class ExecutionFlowAnalyzer
         foreach (int currentSize in stackSize)
             maxSize = int.Max(maxSize, currentSize);
         return StackSizeResult.Ok(maxSize - 1);
+    Error:
+        return StackSizeResult.Err(index);
     }
 
     private static StackSizeResult SetStackSize(Span<int> stackSize, int index, int value)

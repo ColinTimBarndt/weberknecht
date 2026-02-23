@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Collections;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Reflection.Emit;
 using System.Reflection.Metadata;
@@ -47,7 +48,7 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
             OperandType.InlineMethod => (GetTok(GetHandle(immData), EntityType.Method), default),
             OperandType.InlineType => (GetTok(GetHandle(immData), EntityType.Type), default),
             OperandType.InlineTok => (GetTok(GetHandle(immData), EntityType.Type | EntityType.Method | EntityType.Field), default),
-            OperandType.InlineSwitch => throw new NotImplementedException("switch"),
+            OperandType.InlineSwitch => (ReadSwitchTable(BinaryPrimitives.ReadInt32LittleEndian(immData), _data[_index..]), default),
             OperandType.InlineI => (null, BinaryPrimitives.ReadInt32LittleEndian(immData)),
             OperandType.InlineSig => (_ctx.ResolveMethodSignatureHandle((StandaloneSignatureHandle)GetHandle(immData)), default),
             OperandType.InlineString => (_ctx.Meta.GetUserString((UserStringHandle)GetHandle(immData)), default),
@@ -93,6 +94,20 @@ internal ref struct InstructionDecoder(ReadOnlySpan<byte> data, ResolutionContex
             SignatureKind.Field when allowed.HasFlag(EntityType.Field) => _ctx.ResolveField(member),
             _ => throw new InvalidDataException(),
         };
+    }
+
+    private ImmutableArray<int> ReadSwitchTable(int numOffsets, ReadOnlySpan<byte> branchData)
+    {
+        if (numOffsets < 0)
+            throw new InvalidDataException();
+        Span<int> offsets = stackalloc int[numOffsets];
+
+        _index += 4 * numOffsets;
+
+        for (int i = 0; i < numOffsets; i++)
+            offsets[i] = BinaryPrimitives.ReadInt32LittleEndian(branchData[(4 * i)..]) + _index;
+
+        return offsets.ToImmutableArray();
     }
 
     public void Reset()

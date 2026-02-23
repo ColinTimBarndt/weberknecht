@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Collections.Immutable;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -70,7 +71,11 @@ public partial struct Instruction
 
     public override readonly string ToString() => new StringBuilder().Append(in this).ToString();
 
-    public readonly int EncodedSize => ((ushort)OpCode.Value > 255 ? 2 : 1) + OpCode.OperandType.Size;
+    public readonly int EncodedSize
+        => ((ushort)OpCode.Value > 255 ? 2 : 1)
+        + (OpCode.OperandType is OperandType.InlineSwitch
+            ? 4 * (1 + ((ImmutableArray<Label>)_operand!).Length)
+            : OpCode.OperandType.Size);
 
     internal readonly void Emit(ILGenerator il, ReadOnlySpan<RLabel> labels, ReadOnlySpan<LocalBuilder> locals)
     {
@@ -119,7 +124,8 @@ public partial struct Instruction
                 return;
 
             case OperandType.InlineSwitch:
-                throw new NotImplementedException("switch");
+                EmitSwitch(il, OpCode, labels, (ImmutableArray<Label>)_operand!);
+                return;
 
             case OperandType.InlineTok:
                 if (_operand is FieldInfo field)
@@ -157,6 +163,14 @@ public partial struct Instruction
             default:
                 throw new NotImplementedException($"OperandType {Enum.GetName(OpCode.OperandType)}");
         }
+    }
+
+    private static void EmitSwitch(ILGenerator il, OpCode opCode, ReadOnlySpan<RLabel> rlabels, ImmutableArray<Label> labels)
+    {
+        var jumpTable = new RLabel[labels.Length];
+        for (int i = 0; i < labels.Length; i++)
+            jumpTable[i] = rlabels[(int)labels[i] - 1];
+        il.Emit(opCode, jumpTable);
     }
 
     /// <summary>
@@ -231,6 +245,7 @@ public static class InstructionExt
                 FieldInfo field => FormatField(builder, field),
                 MethodInfo method => FormatMethod(builder, method),
                 ConstructorInfo ctor => FormatConstructor(builder, ctor),
+                ImmutableArray<Label> table => FormatJumpTable(builder, table),
                 _ => builder.Append(self._operand),
             };
 
@@ -326,6 +341,24 @@ public static class InstructionExt
         builder.Append('(').AppendJoin(", ", ctor.GetParameters()).Append(')');
 
         return builder;
+    }
+
+    private static StringBuilder FormatJumpTable(StringBuilder builder, ImmutableArray<Label> table)
+    {
+        if (table.Length == 0)
+            return builder.Append("{}");
+
+        builder.Append("{ ");
+
+        for (int i = 0; i < table.Length; i++)
+        {
+            if (i != 0)
+                builder.Append(", ");
+
+            builder.Append('[').Append(i).Append("]: ").AppendLabel(table[i]);
+        }
+
+        return builder.Append(" }");
     }
 
 }
