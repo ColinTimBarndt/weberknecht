@@ -108,7 +108,7 @@ public partial class Method(Type returnType)
 
     public void Emit(ILGenerator il)
     {
-        RLabel[] labels = new RLabel[_labelCount];
+        Span<RLabel> labels = stackalloc RLabel[_labelCount];
         for (int i = 0; i < _labelCount; i++)
             labels[i] = il.DefineLabel();
 
@@ -151,18 +151,20 @@ public partial class Method(Type returnType)
     private byte[] EncodeBody<T>(LabelAddressMap labels, T tokens)
     where T : ITokenSource
     {
+        var instrs = CollectionsMarshal.AsSpan(_instructions);
+
         int size = 0;
-        foreach (var pinstr in _instructions)
+        foreach (ref var pinstr in instrs)
         {
             if (pinstr.Type == PseudoInstructionType.Instruction)
-                size += pinstr.AsInstruction().EncodedSize;
+                size += pinstr.AsInstructionRef().EncodedSize;
         }
 
         byte[] buffer = new byte[size];
 
         InstructionEncoder<T> encoder = new(buffer.AsSpan(), tokens);
 
-        foreach (var pinstr in _instructions)
+        foreach (var pinstr in instrs)
         {
             if (pinstr.Type == PseudoInstructionType.Instruction)
             {
