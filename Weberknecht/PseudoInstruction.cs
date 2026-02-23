@@ -45,42 +45,49 @@ public enum PseudoInstructionType : byte
 public static class PseudoInstructionExt
 {
 
-	public static ref Instruction AsInstructionRef(ref this PseudoInstruction self)
-	{
-		if (self.Type != PseudoInstructionType.Instruction)
-			throw new InvalidOperationException();
-		return ref self._instruction;
-	}
+    public static ref Instruction AsInstructionRef(ref this PseudoInstruction self)
+    {
+        if (self.Type != PseudoInstructionType.Instruction)
+            throw new InvalidOperationException();
+        return ref self._instruction;
+    }
 
-	public static Instruction AsInstruction(this PseudoInstruction self)
-	{
-		if (self.Type != PseudoInstructionType.Instruction)
-			throw new InvalidOperationException();
-		return self._instruction;
-	}
+    public static ref readonly Instruction AsInstructionRefReadonly(ref readonly this PseudoInstruction self)
+    {
+        if (self.Type != PseudoInstructionType.Instruction)
+            throw new InvalidOperationException();
+        return ref self._instruction;
+    }
 
-	public static ref Label AsLabelRef(ref this PseudoInstruction self)
-	{
-		if (self.Type != PseudoInstructionType.Label)
-			throw new InvalidOperationException();
-		return ref Label.CastRef(ref self._label);
-	}
+    public static Instruction AsInstruction(this PseudoInstruction self)
+    {
+        if (self.Type != PseudoInstructionType.Instruction)
+            throw new InvalidOperationException();
+        return self._instruction;
+    }
 
-	public static Label AsLabel(this PseudoInstruction self)
-	{
-		if (self.Type != PseudoInstructionType.Label)
-			throw new InvalidOperationException();
-		return (Label)self._label;
-	}
+    public static ref Label AsLabelRef(ref this PseudoInstruction self)
+    {
+        if (self.Type != PseudoInstructionType.Label)
+            throw new InvalidOperationException();
+        return ref Label.CastRef(ref self._label);
+    }
 
-	public static StringBuilder Append(this StringBuilder builder, in PseudoInstruction self)
-	{
-		return self.Type switch
-		{
-			PseudoInstructionType.Instruction => builder.Append(in self._instruction),
-			PseudoInstructionType.Label => builder.AppendLabel(self.AsLabel()).Append(':'),
-			_ => throw new NotImplementedException(Enum.GetName(self.Type)),
-		};
-	}
+    public static Label AsLabel(this PseudoInstruction self)
+    {
+        if (self.Type != PseudoInstructionType.Label)
+            throw new InvalidOperationException();
+        return (Label)self._label;
+    }
+
+    public static StringBuilder Append(this StringBuilder builder, in PseudoInstruction self)
+    {
+        return self.Type switch
+        {
+            PseudoInstructionType.Instruction => builder.Append(in self._instruction),
+            PseudoInstructionType.Label => builder.AppendLabel(self.AsLabel()).Append(':'),
+            _ => throw new NotImplementedException(Enum.GetName(self.Type)),
+        };
+    }
 
 }
