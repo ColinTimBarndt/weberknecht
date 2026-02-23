@@ -28,7 +28,7 @@ internal static class ExecutionFlowAnalyzer
 
         // Starts at 1, 0 indicates absence of a value
         int[] stackSize = new int[instructions.Length];
-        Stack<int> work = new();
+        StackStack<int> work = new(stackalloc int[labelCount]);
 
         foreach (var clause in exceptionHandlers)
         {
@@ -60,7 +60,7 @@ internal static class ExecutionFlowAnalyzer
     private static StackSizeResult InternalGetMaxStackSize(
         ReadOnlySpan<PseudoInstruction> instructions,
         LabelAddressMap labelTargets,
-        Stack<int> work,
+        StackStack<int> work,
         Span<int> stackSize,
         int returnSize
         )
