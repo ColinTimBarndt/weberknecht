@@ -133,7 +133,10 @@ public partial class Method
         for (int i = 0; i < parameterInfos.Length; i++)
             instance._parameters.Add(parameterInfos[i]);
 
-        instance._genericArguments.AddRange(method.GetGenericArguments());
+        instance._genericParameters.AddRange(
+            from arg in method.GetGenericArguments()
+            select GenericParameter.FromTypeParameter(arg)
+        );
         instance._labelCount = lastLabel;
 
         return instance;

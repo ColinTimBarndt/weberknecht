@@ -12,7 +12,7 @@ using RLabel = System.Reflection.Emit.Label;
 public partial class Method(Type returnType)
 {
 
-    private readonly List<Type> _genericArguments = [];
+    private readonly List<GenericParameter> _genericParameters = [];
     private readonly List<Parameter> _parameters = [];
     private readonly List<LocalVariable> _localVariables = [];
     private readonly List<PseudoInstruction> _instructions = [];
@@ -22,6 +22,49 @@ public partial class Method(Type returnType)
     public Type ReturnType { get; } = returnType;
 
     public ReadOnlyCollection<PseudoInstruction> Instructions => _instructions.AsReadOnly();
+
+    public struct GenericParameter(string name, GenericParameterAttributes attributes)
+    {
+
+        public string Name { get; set; } = name;
+        public GenericParameterAttributes Attributes { get; set; } = attributes;
+        private Type? _baseTypeConstraint = null;
+
+        public Type? BaseTypeConstraint
+        {
+            readonly get => _baseTypeConstraint;
+            set
+            {
+                if (value != null && !value.IsClass)
+                    throw new ArgumentException("Base type is not a class", nameof(value));
+                _baseTypeConstraint = value;
+            }
+        }
+
+        private readonly List<Type> _interfaceConstraints = [];
+
+        public readonly ReadOnlyCollection<Type> InterfaceConstraints => _interfaceConstraints.AsReadOnly();
+
+        public override readonly string ToString() => Name;
+
+        public static GenericParameter FromTypeParameter(Type type)
+        {
+            if (!type.IsGenericMethodParameter)
+                throw new ArgumentException("Not a generic method parameter", nameof(type));
+
+            GenericParameter instance = new(type.Name, type.GenericParameterAttributes);
+            var constraints = type.GetGenericParameterConstraints();
+            var baseType = constraints.FirstOrDefault(ty => !ty.IsInterface);
+            instance.BaseTypeConstraint = baseType;
+            instance._interfaceConstraints.AddRange(
+                from ty in constraints
+                where ty.IsInterface
+                select ty
+            );
+            return instance;
+        }
+
+    }
 
     public readonly struct Parameter(string? name, Type type, ParameterModifier mod)
     {
@@ -73,19 +116,44 @@ public partial class Method(Type returnType)
         Out,
     }
 
-    public DynamicMethod MakeDynamicMethod(string name)
+    public MethodBuilder DefineMethod(ModuleBuilder module, string name, MethodAttributes attributes)
     {
-        if (_genericArguments.Count != 0)
-            throw new InvalidOperationException("Dynamic methods can't be generic");
-
-        var method = new DynamicMethod(name, ReturnType, [.. _parameters.Select(p => p.Type)], restrictedSkipVisibility: true);
-        Emit(method.GetILGenerator());
+        var method = module.DefineGlobalMethod(name, attributes, ReturnType, [.. _parameters.Select(p => p.Type)]);
+        BuildMethod(method);
         return method;
     }
 
-    public DynamicMethod MakeDynamicMethod2(string name)
+    public MethodBuilder DefineMethod(TypeBuilder type, string name, MethodAttributes attributes)
     {
-        if (_genericArguments.Count != 0)
+        var method = type.DefineMethod(name, attributes, ReturnType, [.. _parameters.Select(p => p.Type)]);
+        BuildMethod(method);
+        return method;
+    }
+
+    private void BuildMethod(MethodBuilder method)
+    {
+        if (_genericParameters.Count != 0)
+        {
+            var names = new string[_genericParameters.Count];
+            for (int i = 0; i < names.Length; i++)
+                names[i] = _genericParameters[i].Name;
+            var builders = method.DefineGenericParameters(names);
+            for (int i = 0; i < builders.Length; i++)
+            {
+                var builder = builders[i];
+                var param = _genericParameters[i];
+                builder.SetGenericParameterAttributes(param.Attributes);
+                builder.SetBaseTypeConstraint(param.BaseTypeConstraint);
+                builder.SetInterfaceConstraints([.. param.InterfaceConstraints]);
+            }
+        }
+
+        Emit(method.GetILGenerator());
+    }
+
+    public DynamicMethod CreateDynamicMethod(string name)
+    {
+        if (_genericParameters.Count != 0)
             throw new InvalidOperationException("Dynamic methods can't be generic");
 
         var method = new DynamicMethod(name, ReturnType, [.. _parameters.Select(p => p.Type)], restrictedSkipVisibility: true);
@@ -95,18 +163,22 @@ public partial class Method(Type returnType)
 
         var tokens = TokenSource.Create(info);
 
+        ReadOnlySpan<ExceptionHandlingClause> exceptionHandlers = CollectionsMarshal.AsSpan(_exceptionHandlers);
+
         int[] labels = new int[_labelCount];
-        info.SetCode(EncodeBody(labels, tokens), 64); // TODO: Control Flow Graph analysis
+        int maxStackSize = ExecutionFlowAnalyzer.GetMaxStackSize(CollectionsMarshal.AsSpan(_instructions), exceptionHandlers, _labelCount, ReturnType != typeof(void))
+            .MaxStackSizeOrThrow();
+        info.SetCode(EncodeBody(labels, tokens), maxStackSize);
 
         info.SetLocalSignature(EncodeLocalSignature());
 
         if (_exceptionHandlers != null)
-            info.SetExceptions(ExceptionHandlingClause.EncodeExceptionHandlers(CollectionsMarshal.AsSpan(_exceptionHandlers), labels, tokens));
+            info.SetExceptions(ExceptionHandlingClause.EncodeExceptionHandlers(exceptionHandlers, labels, tokens));
 
         return method;
     }
 
-    public void Emit(ILGenerator il)
+    private void Emit(ILGenerator il)
     {
         Span<RLabel> labels = stackalloc RLabel[_labelCount];
         for (int i = 0; i < _labelCount; i++)
@@ -189,10 +261,10 @@ public partial class Method(Type returnType)
         builder.Append(ReturnType.Name)
             .Append(" Method");
 
-        if (_genericArguments.Count > 0)
+        if (_genericParameters.Count > 0)
         {
             builder.Append('<')
-                .AppendJoin(", ", _genericArguments)
+                .AppendJoin(", ", _genericParameters)
                 .Append('>');
         }
 

@@ -1,4 +1,4 @@
-using Weberknecht;
+﻿using Weberknecht;
 
 {
     Func<int, int, int> original = static (int a, int b) =>
@@ -19,7 +19,7 @@ using Weberknecht;
     var method = Method.Read(original);
     Console.WriteLine(method);
 
-    var dynMethod = method.MakeDynamicMethod2("Add");
+    var dynMethod = method.CreateDynamicMethod("Add");
 
     var dynDelegate = dynMethod.CreateDelegate<Func<int, int, int>>();
     Console.WriteLine($"{original(1, 2)} = {dynDelegate(1, 2)}");
@@ -42,7 +42,7 @@ using Weberknecht;
 
     Console.WriteLine(method);
 
-    var dynMethod = method.MakeDynamicMethod2("Test");
+    var dynMethod = method.CreateDynamicMethod("Test");
 
     var dynDelegate = dynMethod.CreateDelegate<MyMethod>(original.Target);
     Console.WriteLine($"{original(42)} = {dynDelegate(42)}");
@@ -73,7 +73,7 @@ using Weberknecht;
         }
     });
     Console.WriteLine(method);
-    method.MakeDynamicMethod2("Test");
+    method.CreateDynamicMethod("Test");
 }
 
 delegate int MyMethod(in int a);
