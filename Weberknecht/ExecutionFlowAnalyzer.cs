@@ -190,11 +190,11 @@ internal static class ExecutionFlowAnalyzer
 
         public int? MaxStackSize => IsError ? null : _value;
 
-        public int? ConflictingInstructionIndex => IsError ? -1 - _value : null;
+        public int? ConflictingInstructionIndex => IsError ? ~_value : null;
 
         public static StackSizeResult Ok(int maxSize) => new(maxSize);
 
-        public static StackSizeResult Err(int instructionIndex) => new(-1 - instructionIndex);
+        public static StackSizeResult Err(int instructionIndex) => new(~instructionIndex);
         // throw new ConflictingStackSizeException(instructionIndex);
 
     }
