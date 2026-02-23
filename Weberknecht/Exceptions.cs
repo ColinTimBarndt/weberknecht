@@ -75,3 +75,15 @@ public sealed class UnsupportedHashAlgorithmException : MetadataException
     }
 
 }
+
+public sealed class ConflictingStackSizeException : WeberknechtException
+{
+
+    public int InstructionIndex { get; }
+
+    internal ConflictingStackSizeException(int index) : base($"Conflicting stack size at index {index}")
+    {
+        InstructionIndex = index;
+    }
+
+}
