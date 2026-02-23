@@ -186,7 +186,7 @@ internal static class ExecutionFlowAnalyzer
 
         public bool IsZero => _value == 0;
 
-        public int MaxStackSizeOrThrow() => IsError ? throw new ConflictingStackSizeException(-1 - _value) : _value;
+        public int MaxStackSizeOrThrow() => IsError ? throw new ConflictingStackSizeException(~_value) : _value;
 
         public int? MaxStackSize => IsError ? null : _value;
 
