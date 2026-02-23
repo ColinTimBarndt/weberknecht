@@ -1,4 +1,4 @@
-﻿using Weberknecht;
+using Weberknecht;
 
 {
     Func<int, int, int> original = static (int a, int b) =>
