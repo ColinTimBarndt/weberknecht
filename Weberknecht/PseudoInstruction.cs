@@ -5,40 +5,40 @@ namespace Weberknecht;
 public struct PseudoInstruction()
 {
 
-	public readonly PseudoInstructionType Type { get; } = PseudoInstructionType.Instruction;
+    public readonly PseudoInstructionType Type { get; } = PseudoInstructionType.Instruction;
 
-	// managed type
-	internal Instruction _instruction = new();
+    // managed type
+    internal Instruction _instruction = new();
 
-	internal int _label;
+    internal int _label;
 
-	public override readonly string ToString() => new StringBuilder().Append(in this).ToString();
+    public override readonly string ToString() => new StringBuilder().Append(in this).ToString();
 
-	private PseudoInstruction(PseudoInstructionType tag) : this()
-	{
-		Type = tag;
-	}
+    private PseudoInstruction(PseudoInstructionType tag) : this()
+    {
+        Type = tag;
+    }
 
-	private PseudoInstruction(Instruction instr) : this(PseudoInstructionType.Instruction)
-	{
-		_instruction = instr;
-	}
+    private PseudoInstruction(Instruction instr) : this(PseudoInstructionType.Instruction)
+    {
+        _instruction = instr;
+    }
 
-	private PseudoInstruction(int label) : this(PseudoInstructionType.Label)
-	{
-		_label = label;
-	}
+    private PseudoInstruction(int label) : this(PseudoInstructionType.Label)
+    {
+        _label = label;
+    }
 
-	public static implicit operator PseudoInstruction(Instruction instr) => new(instr);
+    public static implicit operator PseudoInstruction(Instruction instr) => new(instr);
 
-	public static PseudoInstruction Label(int label) => new(label);
+    public static PseudoInstruction Label(int label) => new(label);
 
 }
 
 public enum PseudoInstructionType : byte
 {
-	Instruction,
-	Label,
+    Instruction,
+    Label,
 }
 
 // Extension class to receive 'this' by ref
