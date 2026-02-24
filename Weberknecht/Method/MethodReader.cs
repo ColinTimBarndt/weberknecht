@@ -34,12 +34,12 @@ public partial class Method
         var il = new InstructionDecoder(ilBytes, ctx);
         while (il.MoveNext())
         {
-            instructions.Add(PseudoInstruction.Label(0)); // Placeholder
+            instructions.Add(default(Label)); // Placeholder
             jumpTable.Add(il.CurrentAddress, instructions.Count);
             instructions.Add(il.Current);
         }
 
-        instructions.Add(PseudoInstruction.Label(0)); // Placeholder
+        instructions.Add(default(Label)); // Placeholder
         jumpTable.Add(il.CurrentAddress, instructions.Count);
 
         Span<PseudoInstruction> instructionsSpan = CollectionsMarshal.AsSpan(instructions);
@@ -145,7 +145,7 @@ public partial class Method
             from arg in method.GetGenericArguments()
             select GenericParameter.FromTypeParameter(arg)
         );
-        instance._labelCount = lastLabel;
+        instance.LabelCount = lastLabel;
 
         return instance;
     }

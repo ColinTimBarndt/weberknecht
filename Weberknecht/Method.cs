@@ -17,11 +17,13 @@ public partial class Method(Type returnType)
     private readonly List<LocalVariable> _localVariables = [];
     private readonly List<PseudoInstruction> _instructions = [];
     private List<ExceptionHandlingClause>? _exceptionHandlers = null;
-    private int _labelCount = 0;
+    public int LabelCount { get; private set; } = 0;
 
     public Type ReturnType { get; } = returnType;
 
-    public IReadOnlyCollection<PseudoInstruction> Instructions => _instructions.AsReadOnly();
+    public ReadOnlyCollection<PseudoInstruction> Instructions => _instructions.AsReadOnly();
+
+    public ReadOnlyCollection<ExceptionHandlingClause> ExceptionHandlers => _exceptionHandlers?.AsReadOnly() ?? [];
 
     public struct GenericParameter(string name, GenericParameterAttributes attributes)
     {
@@ -165,8 +167,8 @@ public partial class Method(Type returnType)
 
         ReadOnlySpan<ExceptionHandlingClause> exceptionHandlers = CollectionsMarshal.AsSpan(_exceptionHandlers);
 
-        int[] labels = new int[_labelCount];
-        int maxStackSize = ExecutionFlowAnalyzer.GetMaxStackSize(CollectionsMarshal.AsSpan(_instructions), exceptionHandlers, _labelCount, ReturnType != typeof(void))
+        LabelAddressMap labels = stackalloc int[LabelCount];
+        int maxStackSize = ExecutionFlowAnalyzer.GetMaxStackSize(CollectionsMarshal.AsSpan(_instructions), exceptionHandlers, LabelCount, ReturnType != typeof(void))
             .MaxStackSizeOrThrow();
         info.SetCode(EncodeBody(labels, tokens), maxStackSize);
 
@@ -178,10 +180,21 @@ public partial class Method(Type returnType)
         return method;
     }
 
+    public int GetMaxStackSize()
+    {
+        ReadOnlySpan<ExceptionHandlingClause> exceptionHandlers = CollectionsMarshal.AsSpan(_exceptionHandlers);
+        return ExecutionFlowAnalyzer.GetMaxStackSize(
+            CollectionsMarshal.AsSpan(_instructions),
+            exceptionHandlers,
+            LabelCount,
+            ReturnType != typeof(void)
+        ).MaxStackSizeOrThrow();
+    }
+
     private void Emit(ILGenerator il)
     {
-        Span<RLabel> labels = stackalloc RLabel[_labelCount];
-        for (int i = 0; i < _labelCount; i++)
+        Span<RLabel> labels = stackalloc RLabel[LabelCount];
+        for (int i = 0; i < LabelCount; i++)
             labels[i] = il.DefineLabel();
 
         Dictionary<Label, ExceptionHandlingClause> startClauses = [];
@@ -220,7 +233,7 @@ public partial class Method(Type returnType)
         }
     }
 
-    private byte[] EncodeBody<T>(LabelAddressMap labels, T tokens)
+    internal byte[] EncodeBody<T>(LabelAddressMap labels, T tokens)
     where T : ITokenSource
     {
         var instrs = CollectionsMarshal.AsSpan(_instructions);

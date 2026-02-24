@@ -4,7 +4,7 @@ using System.Reflection.Emit;
 
 namespace Weberknecht.Metadata;
 
-public sealed class MethodSignature
+public readonly struct MethodSignature : IEquatable<MethodSignature>
 {
 
     public CallingConventions CallingConventions { get; }
@@ -12,7 +12,7 @@ public sealed class MethodSignature
     public Type ReturnType { get; }
 
     private readonly ImmutableArray<Type> _arguments;
-    public IReadOnlyCollection<Type> Arguments => _arguments;
+    public readonly IReadOnlyList<Type> Arguments => _arguments;
 
     public int RequiredArgumentCount { get; }
 
@@ -56,5 +56,19 @@ public sealed class MethodSignature
         }
         return helper;
     }
+
+    public readonly bool Equals(MethodSignature other)
+        => CallingConventions == other.CallingConventions
+        && ReturnType == other.ReturnType
+        && _arguments == other._arguments
+        && RequiredArgumentCount == other.RequiredArgumentCount;
+
+    public override bool Equals(object? obj) => obj is MethodSignature signature && Equals(signature);
+
+    public override int GetHashCode() => HashCode.Combine(CallingConventions, ReturnType, _arguments, RequiredArgumentCount);
+
+    public static bool operator ==(MethodSignature left, MethodSignature right) => left.Equals(right);
+
+    public static bool operator !=(MethodSignature left, MethodSignature right) => !left.Equals(right);
 
 }

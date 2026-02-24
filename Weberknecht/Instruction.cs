@@ -223,7 +223,6 @@ public partial struct Instruction
         OpByteCodes.LEAVE_S => new(OpCodes.Leave, (int)_uoperand.@sbyte),
         _ => this,
     };
-
 }
 
 public static class InstructionExt

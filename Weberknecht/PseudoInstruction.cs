@@ -2,7 +2,7 @@ using System.Text;
 
 namespace Weberknecht;
 
-public struct PseudoInstruction()
+public struct PseudoInstruction() : IEquatable<PseudoInstruction>
 {
 
     public readonly PseudoInstructionType Type { get; } = PseudoInstructionType.Instruction;
@@ -24,14 +24,35 @@ public struct PseudoInstruction()
         _instruction = instr;
     }
 
-    private PseudoInstruction(int label) : this(PseudoInstructionType.Label)
+    private PseudoInstruction(Label label) : this(PseudoInstructionType.Label)
     {
-        _label = label;
+        _label = (int)label;
     }
 
     public static implicit operator PseudoInstruction(Instruction instr) => new(instr);
 
-    public static PseudoInstruction Label(int label) => new(label);
+    public static implicit operator PseudoInstruction(Label label) => new(label);
+
+    public readonly bool Equals(PseudoInstruction other) => Type == other.Type && Type switch
+    {
+        PseudoInstructionType.Instruction => this.AsInstruction() == other.AsInstruction(),
+        PseudoInstructionType.Label => this.AsLabel() == other.AsLabel(),
+        _ => true,
+    };
+
+    public override readonly bool Equals(object? obj)
+        => obj is PseudoInstruction instruction && Equals(instruction);
+
+    public override readonly int GetHashCode() => Type switch
+    {
+        PseudoInstructionType.Instruction => HashCode.Combine(Type, this.AsInstruction()),
+        PseudoInstructionType.Label => HashCode.Combine(Type, this.AsLabel()),
+        _ => Type.GetHashCode(),
+    };
+
+    public static bool operator ==(PseudoInstruction left, PseudoInstruction right) => left.Equals(right);
+
+    public static bool operator !=(PseudoInstruction left, PseudoInstruction right) => !left.Equals(right);
 
 }
 

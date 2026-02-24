@@ -1,3 +1,5 @@
+![build workflow status](https://github.com/ColinTimBarndt/weberknecht/actions/workflows/build.yml/badge.svg?branch=main)
+
 # Weberknecht
 
 Complements the [System.Reflection] API with full IL inspection capabilities at runtime.
