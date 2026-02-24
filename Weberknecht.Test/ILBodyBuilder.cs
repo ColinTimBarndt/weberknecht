@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Collections;
 using System.Reflection;
 using System.Reflection.Emit;
 using Weberknecht.Metadata;
