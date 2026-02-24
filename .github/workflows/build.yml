@@ -25,6 +25,7 @@ jobs:
 
       - name: Restore NuGet Package Cache
         uses: actions/cache/restore@v5
+        id: cache
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
@@ -35,7 +36,7 @@ jobs:
         run: dotnet restore --locked-mode
 
       - name: Save NuGet Package Cache
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' && steps.cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v5
         with:
           path: ~/.nuget/packages
