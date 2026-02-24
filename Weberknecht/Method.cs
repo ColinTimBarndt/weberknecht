@@ -16,8 +16,8 @@ public partial class Method(Type returnType)
     private readonly List<Parameter> _parameters = [];
     private readonly List<LocalVariable> _localVariables = [];
     private readonly List<PseudoInstruction> _instructions = [];
-    private List<ExceptionHandlingClause>? _exceptionHandlers = null;
-    public int LabelCount { get; private set; } = 0;
+    private List<ExceptionHandlingClause>? _exceptionHandlers;
+    public int LabelCount { get; private set; }
 
     public Type ReturnType { get; } = returnType;
 
@@ -306,7 +306,7 @@ public partial class Method(Type returnType)
                     var instr = pinstr.AsInstruction();
                     if (debugInfo && instr.DebugInfo is SequencePoint seq)
                     {
-                        builder.Append($"\n@ {seq}");
+                        builder.Append("\n@ ").Append(seq);
                     }
                     builder.Append("\n    ");
                 }

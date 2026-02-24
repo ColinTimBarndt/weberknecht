@@ -334,7 +334,7 @@ internal struct ExceptionHandlingClauseHelper()
             }
         }
 
-        public ICollection<TryBlock> Blocks => _blocks.Values;
+        public Dictionary<Label, TryBlock>.ValueCollection Blocks => _blocks.Values;
 
     }
 
@@ -344,7 +344,7 @@ internal struct ExceptionHandlingClauseHelper()
         // handler / filter start -> clause
         private readonly Dictionary<Label, ExceptionHandlingClause> _clauses = [];
 
-        public Label ClausesEnd { get; private set; } = default;
+        public Label ClausesEnd { get; private set; }
 
         private readonly List<Label> _ends = [];
 

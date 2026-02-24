@@ -9,12 +9,12 @@ internal sealed partial class ResolutionContext(Module module, MetadataReader me
     public Module Module { get; } = module;
     public Assembly Assembly { get; } = module.Assembly;
     public MetadataReader Meta { get; } = meta;
-    private GenericContext _gctx = gctx;
+    private readonly GenericContext _gctx = gctx;
 
     private Type GetDeclaredType(string? ns, string name)
         => GetDeclaredType(ns, name, Assembly);
 
-    private Type GetDeclaredType(string? ns, string name, Assembly scope)
+    private static Type GetDeclaredType(string? ns, string name, Assembly scope)
     {
         if (string.IsNullOrEmpty(ns))
             return scope.GetType(name) ?? throw new TypeResolutionException(null, name, scope);
@@ -22,7 +22,7 @@ internal sealed partial class ResolutionContext(Module module, MetadataReader me
             return scope.GetType($"{ns}.{name}") ?? throw new TypeResolutionException(ns, name, scope);
     }
 
-    private Type GetDeclaredType(string? ns, string name, Module scope)
+    private static Type GetDeclaredType(string? ns, string name, Module scope)
     {
         if (string.IsNullOrEmpty(ns))
             return scope.GetType(name) ?? throw new TypeResolutionException(null, name, scope);
@@ -52,7 +52,7 @@ internal sealed partial class ResolutionContext(Module module, MetadataReader me
     public Assembly ResolveAssemblyHandle(AssemblyReferenceHandle handle)
         => ResolveAssembly(Meta.GetAssemblyReference(handle));
 
-    public Assembly ResolveAssembly(AssemblyReference asmRef)
+    public static Assembly ResolveAssembly(AssemblyReference asmRef)
     {
         var name = asmRef.GetAssemblyName();
         return AppDomain.CurrentDomain

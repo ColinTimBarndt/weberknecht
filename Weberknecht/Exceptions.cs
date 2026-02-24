@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Reflection;
 using System.Reflection.Metadata;
 
@@ -17,22 +18,62 @@ public sealed class TypeResolutionException : ResolutionException
 
     public string? Namespace { get; }
     public string Name { get; }
-    public Module? Module { get; } = null;
+    public Module? Module { get; }
     public Assembly Assembly { get; }
 
-    internal TypeResolutionException(string? ns, string name, Assembly scope) : base($"Unable to find type {ns}.{name} in assembly {scope}")
+    internal TypeResolutionException(string? ns, string name, Assembly scope)
+    : base($"Unable to find type {ns}.{name} in assembly {scope}")
     {
         Namespace = ns;
         Name = name;
         Assembly = scope;
     }
 
-    internal TypeResolutionException(string? ns, string name, Module scope) : base($"Unable to find type {ns}.{name} in module {scope}")
+    internal TypeResolutionException(string? ns, string name, Module scope)
+    : base($"Unable to find type {ns}.{name} in module {scope}")
     {
         Namespace = ns;
         Name = name;
         Module = scope;
         Assembly = scope.Assembly;
+    }
+
+}
+
+public sealed class FieldResolutionException : ResolutionException
+{
+
+    public Type DeclaringType { get; }
+    public string FieldName { get; }
+    public Type FieldType { get; }
+
+    internal FieldResolutionException(Type declType, string name, Type fieldType)
+    : base($"Unable to find field {fieldType} {declType}::{name}")
+    {
+        DeclaringType = declType;
+        FieldName = name;
+        FieldType = fieldType;
+    }
+
+}
+
+public sealed class MethodResolutionException : ResolutionException
+{
+
+    public Type DeclaringType { get; }
+    public string MethodName { get; }
+    public Type ReturnType { get; }
+    public ImmutableArray<Type> ArgumentTypes { get; }
+    public bool IsStatic { get; }
+
+    internal MethodResolutionException(Type declType, string name, bool isStatic, Type returnType, ImmutableArray<Type> argumentTypes)
+    : base($"Unable to find {(isStatic ? "static" : string.Empty)}method {returnType} {declType}::{name}({string.Join(", ", argumentTypes)})")
+    {
+        DeclaringType = declType;
+        MethodName = name;
+        ReturnType = returnType;
+        ArgumentTypes = argumentTypes;
+        IsStatic = isStatic;
     }
 
 }

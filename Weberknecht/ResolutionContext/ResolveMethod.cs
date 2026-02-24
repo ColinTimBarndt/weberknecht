@@ -26,7 +26,7 @@ internal sealed partial class ResolutionContext
             HandleKind.MethodDefinition => ResolveMethodHandle((MethodDefinitionHandle)genMethodHandle),
             HandleKind.MemberReference => ResolveMethodHandle((MemberReferenceHandle)genMethodHandle),
             HandleKind.MethodSpecification => throw new InvalidOperationException(),
-            _ => throw new NotImplementedException(genMethodHandle.Kind.ToString()),
+            _ => throw new NotImplementedException(Enum.GetName(genMethodHandle.Kind)),
         };
 
         var typeArgs = spec.DecodeSignature(this, _gctx);
@@ -81,13 +81,13 @@ internal sealed partial class ResolutionContext
         if (method != null)
         {
             if (method.ReturnType != sig.ReturnType)
-                throw new Exception();
+                throw new MethodResolutionException(type, name, !sig.Header.IsInstance, typeof(void), sig.ParameterTypes);
 
             return method;
         }
 
         var ctor = type.GetConstructor(bindingAttr: MetadataUtil.GetBindingFlags(sig.Header), binder: null, types: [.. sig.ParameterTypes], modifiers: null)
-                ?? throw new MissingMethodException(type.Name, name);
+            ?? throw new MethodResolutionException(type, name, false, typeof(void), sig.ParameterTypes);
 
         return ctor;
     }

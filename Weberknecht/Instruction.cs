@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
@@ -251,7 +252,7 @@ public static class InstructionExt
         return self.OpCode.OperandType switch
         {
             OperandType.InlineBrTarget or
-            OperandType.ShortInlineBrTarget => builder.AppendFormat("L{0:X}", self._uoperand.@int),
+            OperandType.ShortInlineBrTarget => builder.AppendFormat(CultureInfo.InvariantCulture, "L{0:X}", self._uoperand.@int),
             OperandType.InlineI => builder.Append(self._uoperand.@int),
             OperandType.InlineI8 => builder.Append(self._uoperand.@byte),
             OperandType.InlineR => builder.Append(self._uoperand.@double),
@@ -291,7 +292,7 @@ public static class InstructionExt
 
                 default:
                     if (ch < 0x20)
-                        builder.AppendFormat("\\x{0:02x}", ch);
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "\\x{0:02x}", ch);
                     else
                         builder.Append(ch);
                     continue;

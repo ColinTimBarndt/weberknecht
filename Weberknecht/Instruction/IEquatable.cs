@@ -8,8 +8,8 @@ public partial struct Instruction : IEquatable<Instruction>
         && _operand == other._operand
         && _uoperand.@long == other._uoperand.@long;
 
-    public override readonly bool Equals(object? other)
-        => other is Instruction instr && Equals(instr);
+    public override readonly bool Equals(object? obj)
+        => obj is Instruction instr && Equals(instr);
 
     public override readonly int GetHashCode()
         => _operand == null

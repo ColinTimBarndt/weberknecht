@@ -15,11 +15,12 @@ internal sealed partial class ResolutionContext
 
         var ctx = new GenericContext(type.GetGenericArguments(), 0);
         var fieldType = memberRef.DecodeFieldSignature(this, ctx);
-        var field = type.GetField(Meta.GetString(memberRef.Name))
-            ?? throw new NullReferenceException();
+        var fieldName = Meta.GetString(memberRef.Name);
+        var field = type.GetField(fieldName)
+            ?? throw new FieldResolutionException(type, fieldName, fieldType);
 
         if (field.FieldType != fieldType)
-            throw new Exception();
+            throw new FieldResolutionException(type, fieldName, fieldType);
 
         return field;
     }
@@ -34,11 +35,12 @@ internal sealed partial class ResolutionContext
 
         var ctx = new GenericContext(type.GetGenericArguments(), 0);
         var fieldType = fieldDef.DecodeSignature(this, ctx);
-        var field = type.GetField(Meta.GetString(fieldDef.Name))
-            ?? throw new NullReferenceException();
+        var fieldName = Meta.GetString(fieldDef.Name);
+        var field = type.GetField(fieldName)
+            ?? throw new FieldResolutionException(type, fieldName, fieldType);
 
         if (field.FieldType != fieldType)
-            throw new Exception();
+            throw new FieldResolutionException(type, fieldName, fieldType);
 
         return field;
     }
