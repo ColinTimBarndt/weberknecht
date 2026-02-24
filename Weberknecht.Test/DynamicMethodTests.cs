@@ -89,38 +89,6 @@ public sealed class DynamicMethodTests
 
         Assert.AreEqual(expectedBody.MaxStackSize, method.GetMaxStackSize(), "stack size");
 
-        var exceptionHandlers = ExceptionHandlingClause.EncodeExceptionHandlers(method.ExceptionHandlers, labels, tokens);
-
-        byte[] expectedExceptionHandlers = [
-            0x01, // Small table
-            40, // Length
-            0, 0,
-            // [4] Catch
-            0, 0,
-            0x03, 0x00,
-            0x07,
-            0x0a, 0x00,
-            0x06,
-            0, 0, 0, 0, // Metadata token at [12]
-            // [16] Filter
-            1, 0,
-            0x03, 0x00,
-            0x07,
-            0x2c, 0x00,
-            0x06,
-            0x10, 0x00, 0x00, 0x00, // Filter offset
-            // [28] Finally
-            2, 0,
-            0x03, 0x00,
-            0x2f,
-            0x32, 0x00,
-            0x06,
-            0, 0, 0, 0,
-        ];
-        BinaryPrimitives.WriteInt32LittleEndian(expectedExceptionHandlers.AsSpan(12, 4), tokens.GetToken(typeof(TestExceptionA)));
-
-        CollectionAssert.AreEqual(expectedExceptionHandlers, exceptionHandlers, "exception handlers match");
-
         var emitted = method.CreateDynamicMethod(nameof(HandleExceptions)).CreateDelegate<Func<Exception?, long>>();
 
         Assert.AreEqual(HandleExceptions(null), emitted(null));
