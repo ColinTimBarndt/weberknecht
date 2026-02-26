@@ -28,27 +28,23 @@ public partial class Method
 
         Method instance = new(method.ReturnType);
 
-        List<PseudoInstruction> instructions = instance._instructions;
+        List<Instruction> instructions = instance._instructions;
         Dictionary<int, int> jumpTable = [];
 
         var il = new InstructionDecoder(ilBytes, ctx);
         while (il.MoveNext())
         {
-            instructions.Add(default(Label)); // Placeholder
             jumpTable.Add(il.CurrentAddress, instructions.Count);
             instructions.Add(il.Current);
         }
 
-        instructions.Add(default(Label)); // Placeholder
-        jumpTable.Add(il.CurrentAddress, instructions.Count);
-
-        Span<PseudoInstruction> instructionsSpan = CollectionsMarshal.AsSpan(instructions);
+        Span<Instruction> instructionsSpan = CollectionsMarshal.AsSpan(instructions);
 
         // Assigns values to the interleaved labels when used
         int lastLabel = 0;
-        for (int i = 1; i < instructionsSpan.Length; i += 2)
+        for (int i = 0; i < instructionsSpan.Length; i++)
         {
-            ref var instr = ref instructionsSpan[i].AsInstructionRef();
+            ref var instr = ref instructionsSpan[i];
 
             if (instr.OpCode.OperandType is OperandType.InlineSwitch)
             {
@@ -60,7 +56,7 @@ public partial class Method
             if (instr.OpCode.OperandType is not OperandType.InlineBrTarget and not OperandType.ShortInlineBrTarget)
                 continue;
 
-            instr._uoperand.@int = (int)Internal_ReadGetLabel(ref lastLabel, instructionsSpan, jumpTable, offset: instr._uoperand.@int);
+            instr._uoperand.label = Internal_ReadGetLabel(ref lastLabel, instructionsSpan, jumpTable, offset: instr._uoperand.@int);
         }
 
         if (body.ExceptionHandlingClauses.Count > 0)
@@ -102,7 +98,7 @@ public partial class Method
                 if (!jumpTable.TryGetValue(point.Offset, out int index))
                     continue;
 
-                ref var instr = ref instructionsSpan[index].AsInstructionRef();
+                ref var instr = ref instructionsSpan[index];
                 if (!documents.TryGetValue(point.Document, out var document))
                 {
                     document = Metadata.Document.FromMetadata(debugMetadata, point.Document);
@@ -111,10 +107,6 @@ public partial class Method
                 instr.DebugInfo = new(document, point.StartLine, point.StartColumn, point.EndLine, point.EndColumn);
             }
         }
-
-        instructionsSpan = default; // Ensure span is not used
-        // Remove unused interleaved labels
-        instructions.RemoveAll(instr => instr.Type == PseudoInstructionType.Label && instr.AsLabel().IsNull);
 
         instance._localVariables.EnsureCapacity(body.LocalVariables.Count);
         for (int i = 0; i < body.LocalVariables.Count; i++)
@@ -153,11 +145,11 @@ public partial class Method
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Label Internal_ReadGetLabel(
         ref int lastLabel,
-        Span<PseudoInstruction> instructions,
+        Span<Instruction> instructions,
         Dictionary<int, int> jumpTable,
         int offset)
     {
-        ref var target = ref instructions[jumpTable[offset] - 1].AsLabelRef();
+        ref var target = ref instructions[jumpTable[offset]]._label;
 
         return target.IsNull ? target = (Label)(++lastLabel) : target;
     }
@@ -165,7 +157,7 @@ public partial class Method
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static LabelRange Internal_ReadGetLabelRange(
         ref int lastLabel,
-        Span<PseudoInstruction> instructions,
+        Span<Instruction> instructions,
         Dictionary<int, int> jumpTable,
         int offset,
         int length)
@@ -177,7 +169,7 @@ public partial class Method
 
     private static ImmutableArray<Label> Internal_ReadGetLabelArray(
         ref int lastLabel,
-        Span<PseudoInstruction> instructions,
+        Span<Instruction> instructions,
         Dictionary<int, int> jumpTable,
         ImmutableArray<int> offsets)
     {

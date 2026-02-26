@@ -12,7 +12,7 @@ public sealed class DynamicMethodTests
     public void TestAddInts()
     {
         var method = Method.Read(AddInts);
-        CollectionAssert.AreEqual((PseudoInstruction[])[
+        CollectionAssert.AreEqual((Instruction[])[
             Instruction.LoadArgument(0),
             Instruction.LoadArgument(1),
             Instruction.Add(),
@@ -35,7 +35,7 @@ public sealed class DynamicMethodTests
     public void TestCallMethod()
     {
         var method = Method.Read(CallMethod);
-        CollectionAssert.AreEqual((PseudoInstruction[])[
+        CollectionAssert.AreEqual((Instruction[])[
             Instruction.LoadArgument(0),
             Instruction.Load(10),
             Instruction.Call(AddInts),
@@ -132,9 +132,8 @@ public sealed class DynamicMethodTests
     public void TestSwitchOnValue()
     {
         var method = Method.Read(SwitchOnValue);
-        Assert.IsTrue(method.Instructions.Any(
-            instr => instr.Type == PseudoInstructionType.Instruction
-                && instr.AsInstruction().OpCode == OpCodes.Switch),
+        Assert.IsTrue(
+            method.Instructions.Any(instr => instr.OpCode == OpCodes.Switch),
             "contains switch instruction"
         );
 

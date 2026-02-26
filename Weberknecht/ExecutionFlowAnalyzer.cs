@@ -8,7 +8,7 @@ internal static class ExecutionFlowAnalyzer
 {
 
     public static StackSizeResult GetMaxStackSize(
-        ReadOnlySpan<PseudoInstruction> instructions,
+        ReadOnlySpan<Instruction> instructions,
         ReadOnlySpan<ExceptionHandlingClause> exceptionHandlers,
         int labelCount,
         bool hasReturnValue)
@@ -19,10 +19,10 @@ internal static class ExecutionFlowAnalyzer
         LabelAddressMap labelTargets = stackalloc int[labelCount];
         for (int index = 0; index < instructions.Length; index++)
         {
-            ref readonly var psinstruction = ref instructions[index];
-            if (psinstruction.Type != PseudoInstructionType.Label)
+            ref readonly var label = ref instructions[index]._label;
+            if (label.IsNull)
                 continue;
-            labelTargets[psinstruction.AsLabel()] = index + 1;
+            labelTargets[label] = index;
         }
 
         int returnSize = hasReturnValue ? 2 : 1; // Starts at 1
@@ -59,7 +59,7 @@ internal static class ExecutionFlowAnalyzer
     }
 
     private static StackSizeResult InternalGetMaxStackSize(
-        ReadOnlySpan<PseudoInstruction> instructions,
+        ReadOnlySpan<Instruction> instructions,
         LabelAddressMap labelTargets,
         StackStack<int> work,
         Span<int> stackSize,
@@ -72,17 +72,8 @@ internal static class ExecutionFlowAnalyzer
         do
         {
         Start:
-            ref readonly var psinstruction = ref instructions[index];
+            ref readonly var instruction = ref instructions[index];
             int currentSize = stackSize[index];
-
-            if (psinstruction.Type == PseudoInstructionType.Label)
-            {
-                if ((result = SetStackSize(stackSize, ++index, currentSize)).IsError)
-                    return result;
-                goto Start;
-            }
-
-            ref readonly var instruction = ref psinstruction.AsInstructionRefReadonly();
 
             var opcode = instruction.OpCode;
             int target;

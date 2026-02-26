@@ -16,15 +16,15 @@ public partial class Method(Type returnType)
     private readonly List<GenericParameter> _genericParameters = [];
     private readonly List<Parameter> _parameters = [];
     private readonly List<LocalVariable> _localVariables = [];
-    private readonly List<PseudoInstruction> _instructions = [];
+    private readonly List<Instruction> _instructions = [];
     private List<ExceptionHandlingClause>? _exceptionHandlers;
     public int LabelCount { get; private set; }
 
     public Type ReturnType { get; } = returnType;
 
-    public ReadOnlyCollection<PseudoInstruction> Instructions => _instructions.AsReadOnly();
+    public ReadOnlyCollection<Instruction> Instructions => _instructions.AsReadOnly();
 
-    public ReadOnlySpan<PseudoInstruction> InstructionsAsSpan() => CollectionsMarshal.AsSpan(_instructions);
+    public ReadOnlySpan<Instruction> InstructionsAsSpan() => CollectionsMarshal.AsSpan(_instructions);
 
     public ReadOnlyCollection<ExceptionHandlingClause> ExceptionHandlers => _exceptionHandlers?.AsReadOnly() ?? [];
 
@@ -214,25 +214,18 @@ public partial class Method(Type returnType)
             locals[i] = il.DeclareLocal(localDef.Type, localDef.IsPinned);
         }
 
-        Span<PseudoInstruction> instrs = CollectionsMarshal.AsSpan(_instructions);
+        Span<Instruction> instrs = CollectionsMarshal.AsSpan(_instructions);
         ExceptionHandlingClauseHelper clauseHelper = new(CollectionsMarshal.AsSpan(_exceptionHandlers));
         foreach (ref var instr in instrs)
         {
-            switch (instr.Type)
+            var label = instr.Label;
+            if (!label.IsNull)
             {
-                case PseudoInstructionType.Instruction:
-                    instr.AsInstructionRef().Emit(il, labels, locals);
-                    continue;
-
-                case PseudoInstructionType.Label:
-                    var label = instr.AsLabel();
-                    clauseHelper.OnMarkLabel(label, il);
-                    il.MarkLabel(labels[(int)label - 1]);
-                    continue;
-
-                default:
-                    throw new NotImplementedException(Enum.GetName(instr.Type));
+                clauseHelper.OnMarkLabel(label, il);
+                il.MarkLabel(labels[(int)label - 1]);
             }
+
+            instr.Emit(il, labels, locals);
         }
     }
 
@@ -242,26 +235,20 @@ public partial class Method(Type returnType)
         var instrs = CollectionsMarshal.AsSpan(_instructions);
 
         int size = 0;
-        foreach (ref var pinstr in instrs)
-        {
-            if (pinstr.Type == PseudoInstructionType.Instruction)
-                size += pinstr.AsInstructionRef().EncodedSize;
-        }
+        foreach (ref var instr in instrs)
+            size += instr.EncodedSize;
 
         byte[] buffer = new byte[size];
 
         InstructionEncoder<T> encoder = new(buffer.AsSpan(), tokens);
 
-        foreach (var pinstr in instrs)
+        foreach (var instr in instrs)
         {
-            if (pinstr.Type == PseudoInstructionType.Instruction)
-            {
-                encoder.Emit(pinstr.AsInstruction());
-            }
-            else
-            { // Label
-                labels[pinstr.AsLabel()] = encoder.CurrentAddress;
-            }
+            var label = instr.Label;
+            if (!label.IsNull)
+                labels[label] = encoder.CurrentAddress;
+
+            encoder.Emit(instr);
         }
 
         encoder.WriteLabels(labels);
@@ -302,22 +289,19 @@ public partial class Method(Type returnType)
                 builder.Append('\n')
                     .AppendJoin('\n', _exceptionHandlers);
             }
-            foreach (var pinstr in _instructions)
+            foreach (ref var instr in CollectionsMarshal.AsSpan(_instructions))
             {
-                if (pinstr.Type is PseudoInstructionType.Instruction)
+                if (debugInfo && instr.DebugInfo is SequencePoint seq)
                 {
-                    var instr = pinstr.AsInstruction();
-                    if (debugInfo && instr.DebugInfo is SequencePoint seq)
-                    {
-                        builder.Append("\n@ ").Append(seq);
-                    }
-                    builder.Append("\n    ");
+                    builder.Append("\n@ ").Append(seq);
                 }
-                else
-                {
-                    builder.Append('\n');
-                }
-                builder.Append(in pinstr);
+
+                var label = instr.Label;
+                if (!label.IsNull)
+                    builder.Append('\n').AppendLabel(label).Append(':');
+
+                builder.Append("\n    ");
+                builder.Append(in instr);
             }
         }
         return builder.ToString();

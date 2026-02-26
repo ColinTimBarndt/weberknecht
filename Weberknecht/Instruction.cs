@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -17,6 +17,11 @@ public partial struct Instruction
     internal object? _operand = null;
     internal UnmanagedOperand _uoperand = default;
     public SequencePoint? DebugInfo { get; set; }
+    internal Label _label;
+
+    public readonly Label Label => _label;
+
+    public readonly bool HasLabel => !_label.IsNull;
 
     [StructLayout(LayoutKind.Explicit)]
     internal struct UnmanagedOperand
@@ -32,6 +37,9 @@ public partial struct Instruction
 
         [FieldOffset(0)]
         internal int @int;
+
+        [FieldOffset(0)]
+        internal Label label;
 
         [FieldOffset(0)]
         internal long @long;
