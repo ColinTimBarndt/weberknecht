@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using Weberknecht.Metadata;
-using Weberknecht.Util;
 
 namespace Weberknecht;
 
@@ -54,23 +53,12 @@ public readonly struct ExceptionHandlingClause
 
     internal static byte[] EncodeExceptionHandlers<T>(ReadOnlySpan<ExceptionHandlingClause> clauses, LabelAddressMap labels, T tokens)
     where T : ITokenSource
-        => InternalEncodeExceptionHandlers<T, ReadOnlySpanAdapter<ExceptionHandlingClause>, ReadOnlySpan<ExceptionHandlingClause>.Enumerator>(clauses.Adapter(), labels, tokens);
-
-    internal static byte[] EncodeExceptionHandlers<T, TClauses>(TClauses clauses, LabelAddressMap labels, T tokens)
-    where T : ITokenSource
-    where TClauses : IReadOnlyList<ExceptionHandlingClause>
-        => InternalEncodeExceptionHandlers<T, ReadOnlyListAdapter<ExceptionHandlingClause, TClauses>, IEnumerator<ExceptionHandlingClause>>(clauses.Adapter<ExceptionHandlingClause, TClauses>(), labels, tokens);
-
-    private static byte[] InternalEncodeExceptionHandlers<T, TClauses, TClauseEnumerator>(TClauses clauses, LabelAddressMap labels, T tokens)
-    where T : ITokenSource
-    where TClauses : IReadOnlyListAdapter<ExceptionHandlingClause, TClauseEnumerator>, allows ref struct
-    where TClauseEnumerator : IEnumerator<ExceptionHandlingClause>, allows ref struct
     {
         bool small = true;
         foreach (var clause in clauses)
             small &= clause.CanUseSmallEncoding(labels);
 
-        int size = 4 + clauses.Count * (small ? SMALL_SIZE : FAT_SIZE);
+        int size = 4 + clauses.Length * (small ? SMALL_SIZE : FAT_SIZE);
         byte[] buffer = new byte[size];
         buffer[0] = small ? (byte)1 : (byte)(1 | 0x40); // 0x01 = Exception handlers, 0x40 = fat flag
         BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(1, 4), size); // size fits in 24 bits => last byte is zero
@@ -78,12 +66,12 @@ public readonly struct ExceptionHandlingClause
         Span<byte> slice = buffer.AsSpan(4);
         if (small)
         {
-            for (int i = 0; i < clauses.Count; i++)
+            for (int i = 0; i < clauses.Length; i++)
                 clauses[i].WriteSmall(slice[(SMALL_SIZE * i)..], labels, tokens);
         }
         else
         {
-            for (int i = 0; i < clauses.Count; i++)
+            for (int i = 0; i < clauses.Length; i++)
                 clauses[i].WriteFat(slice[(FAT_SIZE * i)..], labels, tokens);
         }
 

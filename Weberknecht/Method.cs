@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -22,6 +23,8 @@ public partial class Method(Type returnType)
     public Type ReturnType { get; } = returnType;
 
     public ReadOnlyCollection<PseudoInstruction> Instructions => _instructions.AsReadOnly();
+
+    public ReadOnlySpan<PseudoInstruction> InstructionsAsSpan() => CollectionsMarshal.AsSpan(_instructions);
 
     public ReadOnlyCollection<ExceptionHandlingClause> ExceptionHandlers => _exceptionHandlers?.AsReadOnly() ?? [];
 
