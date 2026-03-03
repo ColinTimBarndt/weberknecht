@@ -36,10 +36,10 @@ public sealed class InsertInstructionTests
     {
         Method method = CreateTestMethod();
 
-        method.Instructions.InsertRange(1, 0, [
+        method.Instructions.InsertRange(1, 0,
             Instruction.LoadArgument(0),
-            Instruction.LoadArgument(1),
-        ]);
+            Instruction.LoadArgument(1)
+        );
 
         CollectionAssert.AreEqual((Instruction[])[
             Instruction.Load(0),
@@ -91,10 +91,10 @@ public sealed class InsertInstructionTests
     {
         Method method = CreateTestMethod();
 
-        method.Instructions.InsertRange(1, 1, [
+        method.Instructions.InsertRange(1, 1,
             Instruction.LoadArgument(0),
-            Instruction.LoadArgument(1),
-        ]);
+            Instruction.LoadArgument(1)
+        );
 
         CollectionAssert.AreEqual((Instruction[])[
             Instruction.Load(0),

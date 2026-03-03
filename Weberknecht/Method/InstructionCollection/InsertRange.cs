@@ -13,6 +13,9 @@ public partial class Method
         public void AddRange(params ReadOnlySpan<Instruction> items)
             => Internal_InsertRange<ValidationCallback>(Count, 0, items);
 
+        public void AddRange(List<Instruction> items)
+            => Internal_InsertRange<ValidationCallback>(Count, 0, CollectionsMarshal.AsSpan(items));
+
         public void AddRange<T>(T items)
         where T : IReadOnlyCollection<Instruction>, allows ref struct
             => Internal_InsertRange<T, ValidationCallback>(Count, 0, items);
@@ -20,14 +23,17 @@ public partial class Method
         public void RemoveRange(int index, int count)
             => Internal_InsertRange<ValidationCallback>(index, count, []);
 
-        public void InsertRange(int index, int replaceLength, ReadOnlySpan<Instruction> items)
+        public void InsertRange(int index, int replaceLength, params ReadOnlySpan<Instruction> items)
             => Internal_InsertRange<ValidationCallback>(index, replaceLength, items);
+
+        public void InsertRange(int index, int replaceLength, List<Instruction> items)
+            => Internal_InsertRange<ValidationCallback>(index, replaceLength, CollectionsMarshal.AsSpan(items));
 
         public void InsertRange<T>(int index, int replaceLength, T items)
         where T : IReadOnlyCollection<Instruction>, allows ref struct
             => Internal_InsertRange<T, ValidationCallback>(index, replaceLength, items);
 
-        private void InsertRangeUnchecked(int index, int replaceLength, ReadOnlySpan<Instruction> items)
+        private void InsertRangeUnchecked(int index, int replaceLength, params ReadOnlySpan<Instruction> items)
             => Internal_InsertRange<NoValidationCallback>(index, replaceLength, items);
 
         private interface IValidationCallback
@@ -66,6 +72,7 @@ public partial class Method
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private void Internal_InsertRange<TValidate>(int index, int replaceLength, ReadOnlySpan<Instruction> items)
         where TValidate : IValidationCallback
         {
@@ -91,30 +98,11 @@ public partial class Method
             items.CopyTo(span.Slice(index, items.Length));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private void Internal_InsertRange<T, TValidate>(int index, int replaceLength, T items)
         where T : IReadOnlyCollection<Instruction>, allows ref struct
         where TValidate : IValidationCallback
         {
-            if (typeof(T) == typeof(List<Instruction>))
-            {
-                var list = Unsafe.As<T, List<Instruction>>(ref items);
-                Internal_InsertRange<TValidate>(index, replaceLength, CollectionsMarshal.AsSpan(list));
-                return;
-            }
-            
-            if (typeof(T) == typeof(Instruction[])) {
-                var array = Unsafe.As<T, Instruction[]>(ref items);
-                Internal_InsertRange<TValidate>(index, replaceLength, array.AsSpan());
-                return;
-            }
-
-            if (typeof(T) == typeof(ImmutableArray<Instruction>))
-            {
-                var array = Unsafe.As<T, ImmutableArray<Instruction>>(ref items);
-                Internal_InsertRange<TValidate>(index, replaceLength, array.AsSpan());
-                return;
-            }
-
             var instrs = Method._instructions;
             var insertCount = items.Count;
             TValidate.CheckBounds(instrs, index, replaceLength, insertCount);
@@ -129,7 +117,6 @@ public partial class Method
             var moveStart = index + replaceLength;
             var moveCount = oldCount - moveStart;
             var span = CollectionsMarshal.AsSpan(instrs);
-            Console.WriteLine($"moveStart={moveStart} moveCount={moveCount} newCount={newCount}");
             span.Slice(moveStart, moveCount).CopyTo(span[(index + insertCount)..]);
 
             var enumerator = items.GetEnumerator();
