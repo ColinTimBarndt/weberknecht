@@ -22,7 +22,7 @@ public partial class Method(Type returnType)
 
     public Type ReturnType { get; } = returnType;
 
-    public InstructionAccess Instructions => new(this);
+    public InstructionCollection Instructions => new(this);
 
     public ReadOnlyCollection<ExceptionHandlingClause> ExceptionHandlers => _exceptionHandlers?.AsReadOnly() ?? [];
 

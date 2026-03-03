@@ -7,7 +7,7 @@ namespace Weberknecht;
 public partial class Method
 {
 
-    public readonly partial struct InstructionAccess : IList<Instruction>, IReadOnlyList<Instruction>, ICollection
+    public readonly partial struct InstructionCollection : IList<Instruction>, IReadOnlyList<Instruction>, ICollection
     {
 
         public Method Method { get; }
@@ -33,7 +33,7 @@ public partial class Method
             }
         }
 
-        internal InstructionAccess(Method method)
+        internal InstructionCollection(Method method)
         {
             Method = method;
         }
