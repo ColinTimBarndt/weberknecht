@@ -101,6 +101,12 @@ public partial class Method
                 Internal_InsertRange<TValidate>(index, replaceLength, CollectionsMarshal.AsSpan(list));
                 return;
             }
+            
+            if (typeof(T) == typeof(Instruction[])) {
+                var array = Unsafe.As<T, Instruction[]>(ref items);
+                Internal_InsertRange<TValidate>(index, replaceLength, array.AsSpan());
+                return;
+            }
 
             if (typeof(T) == typeof(ImmutableArray<Instruction>))
             {
