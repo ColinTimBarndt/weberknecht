@@ -10,10 +10,10 @@ public static class InstructionUtil
     extension(Method self)
     {
 
-        public void ReplaceStaticInterfaceCalls(StaticCallReplacer replacer)
-            => self.ReplaceStaticInterfaceCalls(replacer, []);
+        public void ReplaceStaticInterfaceCalls(StaticCallReplacerFunc replacer)
+            => self.ReplaceStaticInterfaceCalls<StaticCallReplacer>(replacer, []);
 
-        public void ReplaceStaticInterfaceCalls(StaticCallReplacer replacer, List<Instruction> pooledList)
+        public void ReplaceStaticInterfaceCalls(StaticCallReplacerFunc replacer, List<Instruction> pooledList)
             => self.ReplaceStaticInterfaceCalls<StaticCallReplacer>(replacer, pooledList);
 
         public void ReplaceStaticInterfaceCalls<TReplacer>(TReplacer replacer)
@@ -53,23 +53,23 @@ public static class InstructionUtil
 
     }
 
+    private readonly struct StaticCallReplacer(StaticCallReplacerFunc func) : IStaticCallReplacer
+    {
+
+        private readonly StaticCallReplacerFunc _func = func;
+
+        bool IStaticCallReplacer.ReplaceCall(Method method, Type callType, MethodInfo callMethod, List<Instruction> result)
+            => _func(method, callType, callMethod, result);
+
+        public static implicit operator StaticCallReplacer(StaticCallReplacerFunc func) => new(func);
+
+    }
+
 }
 
 public interface IStaticCallReplacer
 {
 
     bool ReplaceCall(Method method, Type callType, MethodInfo callMethod, List<Instruction> result);
-
-}
-
-public readonly struct StaticCallReplacer(StaticCallReplacerFunc func) : IStaticCallReplacer
-{
-
-    private readonly StaticCallReplacerFunc _func = func;
-
-    bool IStaticCallReplacer.ReplaceCall(Method method, Type callType, MethodInfo callMethod, List<Instruction> result)
-        => _func(method, callType, callMethod, result);
-
-    public static implicit operator StaticCallReplacer(StaticCallReplacerFunc func) => new(func);
 
 }

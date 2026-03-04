@@ -48,6 +48,11 @@ public sealed class InstructionUtilTests
             operation,
             ((Delegate)MyOperation).Method
         ));
+        method.ReplaceStaticInterfaceCalls((Method _, Type type, MethodInfo method, List<Instruction> result) =>
+        {
+
+            return true;
+        });
         var dynMethod = method.CreateDynamicMethod("DoMyThing");
         var doMyThing = dynMethod.CreateDelegate<Func<int>>();
         Assert.AreEqual(42, doMyThing());
