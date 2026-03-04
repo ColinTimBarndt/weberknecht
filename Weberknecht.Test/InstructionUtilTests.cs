@@ -6,29 +6,6 @@ namespace Weberknecht.Test;
 public sealed class InstructionUtilTests
 {
 
-    private readonly struct SimpleReplacer(Type type, MethodInfo method, MethodInfo replaceWith) : IStaticCallReplacer
-    {
-
-        private readonly Type _type = type;
-        private readonly MethodInfo _method = method;
-        private readonly MethodInfo _replaceWith = replaceWith;
-
-        bool IStaticCallReplacer.ReplaceCall(Method _, Type type, MethodInfo method, List<Instruction> result)
-        {
-            if (type != _type || method != _method)
-                return false;
-
-            result.Add(Instruction.Call(_replaceWith));
-
-            return true;
-        }
-
-        public SimpleReplacer(Type type, Delegate method, Delegate replaceWith)
-            : this(type, method.Method, replaceWith.Method)
-        { }
-
-    }
-
     [TestMethod]
     public void ReplaceStaticInterfaceCalls()
     {
@@ -43,11 +20,15 @@ public sealed class InstructionUtilTests
         Assert.IsNotNull(operation);
 
         var method = Method.Read(doSomething);
-        method.ReplaceStaticInterfaceCalls(new SimpleReplacer(
-            typeT,
-            operation,
-            ((Delegate)MyOperation).Method
-        ));
+        method.ReplaceInterfaceCalls((_, type, method, result) =>
+        {
+            if (type != typeT || method != operation)
+                return false;
+
+            result.Add(Instruction.Call(MyOperation));
+
+            return true;
+        });
         var dynMethod = method.CreateDynamicMethod("DoMyThing");
         var doMyThing = dynMethod.CreateDelegate<Func<int>>();
         Assert.AreEqual(42, doMyThing());

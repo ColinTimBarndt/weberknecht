@@ -53,6 +53,7 @@ internal static class OpByteCodes
         BLE_UN_S = 0x36,
         BLT_UN_S = 0x37,
         BR = 0x38,
+        CALLVIRT = 0x6F,
         NEWOBJ = 0x73,
         ENDFINALLY = 0xDC,
         LEAVE_S = 0xDE,
