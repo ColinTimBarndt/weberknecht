@@ -7,7 +7,34 @@ public sealed class InstructionUtilTests
 {
 
     [TestMethod]
-    public void ReplaceStaticInterfaceCalls()
+    public void ReplaceCalls()
+    {
+        var method = Method.Read((int x, int y) => 5 + Add(x, 6) - Add(2, y));
+
+        var add = ((Delegate)Add).Method;
+
+        method.ReplaceCalls((_, method, result) =>
+        {
+            if (method != add)
+                return false;
+
+            result.Add(Instruction.Call(Sub));
+
+            return true;
+        });
+
+        // (x, y) => 5 + (x-6) - (2-y)
+        var dynMethod = method.CreateDynamicMethod("SpecialSub");
+        var specialSub = dynMethod.CreateDelegate<Func<int, int, int>>();
+        Assert.AreEqual(42, specialSub(12, 33));
+    }
+
+    private static int Add(int a, int b) => a + b;
+
+    private static int Sub(int a, int b) => a - b;
+
+    [TestMethod]
+    public void ReplaceInterfaceCalls()
     {
         var doSomething = typeof(TestClass<>).GetMethod("DoSomething");
         Assert.IsNotNull(doSomething);
