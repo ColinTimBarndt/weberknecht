@@ -1,5 +1,3 @@
-using System.Reflection.Emit;
-
 namespace Weberknecht;
 
 internal static class OpByteCodes
@@ -39,6 +37,7 @@ internal static class OpByteCodes
         LDC_I4_8 = 0x1E,
         LDC_I4_S = 0x1F,
         // LDC_I4 = 0x20,
+        CALL = 0x28,
         RET = 0x2A,
         BR_S = 0x2B,
         BRFALSE_S = 0x2C,
@@ -57,6 +56,7 @@ internal static class OpByteCodes
         NEWOBJ = 0x73,
         ENDFINALLY = 0xDC,
         LEAVE_S = 0xDE,
-        ENDFILTER = 0xFE11;
+        ENDFILTER = 0xFE11,
+        CONSTRAINED = 0xFE16;
 
 }

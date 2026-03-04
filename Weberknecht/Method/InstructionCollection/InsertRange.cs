@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -65,10 +64,7 @@ public partial class Method
                     throw new ArgumentException("Index out of bounds", nameof(index));
 
                 if (replaceLength < 0 || index + replaceLength > instrs.Count)
-                    throw new ArgumentException("Length out of bounds", nameof(replaceLength));
-
-                if (replaceLength > insertCount)
-                    throw new ArgumentException("Not enough items to insert");
+                    throw new ArgumentException("Replaced length out of bounds", nameof(replaceLength));
             }
         }
 
@@ -83,13 +79,17 @@ public partial class Method
             var oldCount = instrs.Count;
             var newCount = oldCount - replaceLength + items.Length;
             instrs.EnsureCapacity(newCount);
-            CollectionsMarshal.SetCount(instrs, newCount);
+            bool grow = newCount >= oldCount;
+            if (grow)
+                CollectionsMarshal.SetCount(instrs, newCount);
 
             // Make room for new items
             var moveStart = index + replaceLength;
             var moveCount = oldCount - moveStart;
             var span = CollectionsMarshal.AsSpan(instrs);
             span.Slice(moveStart, moveCount).CopyTo(span[(index + items.Length)..]);
+            if (!grow)
+                CollectionsMarshal.SetCount(instrs, newCount);
 
             int labelCount = Method.LabelCount;
             for (int i = 0; i < items.Length; i++)
@@ -111,13 +111,17 @@ public partial class Method
             var oldCount = instrs.Count;
             var newCount = oldCount - replaceLength + insertCount;
             instrs.EnsureCapacity(newCount);
-            CollectionsMarshal.SetCount(instrs, newCount);
+            bool grow = newCount >= oldCount;
+            if (grow)
+                CollectionsMarshal.SetCount(instrs, newCount);
 
             // Make room for new items
             var moveStart = index + replaceLength;
             var moveCount = oldCount - moveStart;
             var span = CollectionsMarshal.AsSpan(instrs);
             span.Slice(moveStart, moveCount).CopyTo(span[(index + insertCount)..]);
+            if (!grow)
+                CollectionsMarshal.SetCount(instrs, newCount);
 
             var enumerator = items.GetEnumerator();
             int labelCount = Method.LabelCount;
