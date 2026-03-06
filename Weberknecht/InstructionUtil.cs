@@ -4,6 +4,7 @@ namespace Weberknecht;
 
 using ConstrainedCallReplacerFunc = Func<Method, Type, MethodInfo, List<Instruction>, bool>;
 using CallReplacerFunc = Func<Method, MethodInfo, List<Instruction>, bool>;
+using FieldAccessReplacerFunc = Func<Method, FieldInfo, FieldInfo?>;
 
 public static class InstructionUtil
 {
@@ -43,6 +44,30 @@ public static class InstructionUtil
         where TReplacer : IConstrainedCallReplacer, allows ref struct
             => Internal_ReplaceInterfaceCalls(self, replacer, pooledList);
 
+        // Field access
+
+        public void ReplaceFieldAccess<TReplacer>(TReplacer replacer)
+        where TReplacer : IFieldAccessReplacer, allows ref struct
+        => Internal_ReplaceFieldAccess(self, replacer, []);
+
+        public void ReplaceFieldAccess<TReplacer>(TReplacer replacer, List<Instruction> pooledList)
+        where TReplacer : IFieldAccessReplacer, allows ref struct
+            => Internal_ReplaceFieldAccess(self, replacer, pooledList);
+
+        public void ReplaceFieldAccessSimple(FieldAccessReplacerFunc replacer)
+            => Internal_ReplaceFieldAccess<FieldAccessReplacer<SimpleFieldAccessReplacer>>(self, new(replacer), []);
+
+        public void ReplaceFieldAccessSimple(FieldAccessReplacerFunc replacer, List<Instruction> pooledList)
+            => Internal_ReplaceFieldAccess<FieldAccessReplacer<SimpleFieldAccessReplacer>>(self, new(replacer), pooledList);
+
+        public void ReplaceFieldAccessSimple<TReplacer>(TReplacer replacer)
+        where TReplacer : ISimpleFieldAccessReplacer, allows ref struct
+            => Internal_ReplaceFieldAccess<FieldAccessReplacer<TReplacer>>(self, new(replacer), []);
+
+        public void ReplaceFieldAccessSimple<TReplacer>(TReplacer replacer, List<Instruction> pooledList)
+        where TReplacer : ISimpleFieldAccessReplacer, allows ref struct
+            => Internal_ReplaceFieldAccess<FieldAccessReplacer<TReplacer>>(self, new(replacer), pooledList);
+
     }
 
     private static bool IsCall(ushort opCode) => opCode is OpByteCodes.CALL or OpByteCodes.CALLVIRT;
@@ -75,6 +100,18 @@ public static class InstructionUtil
 
             i++;
         }
+    }
+
+    private readonly struct CallReplacer(CallReplacerFunc func) : ICallReplacer
+    {
+
+        private readonly CallReplacerFunc _func = func;
+
+        bool ICallReplacer.ReplaceCall(Method method, MethodInfo callMethod, List<Instruction> result)
+            => _func(method, callMethod, result);
+
+        public static implicit operator CallReplacer(CallReplacerFunc func) => new(func);
+
     }
 
     private static void Internal_ReplaceInterfaceCalls<TReplacer>(Method self, TReplacer replacer, List<Instruction> pooledList)
@@ -114,18 +151,6 @@ public static class InstructionUtil
         }
     }
 
-    private readonly struct CallReplacer(CallReplacerFunc func) : ICallReplacer
-    {
-
-        private readonly CallReplacerFunc _func = func;
-
-        bool ICallReplacer.ReplaceCall(Method method, MethodInfo callMethod, List<Instruction> result)
-            => _func(method, callMethod, result);
-
-        public static implicit operator CallReplacer(CallReplacerFunc func) => new(func);
-
-    }
-
     private readonly struct ConstrainedCallReplacer(ConstrainedCallReplacerFunc func) : IConstrainedCallReplacer
     {
 
@@ -136,6 +161,98 @@ public static class InstructionUtil
 
         public static implicit operator ConstrainedCallReplacer(ConstrainedCallReplacerFunc func) => new(func);
 
+    }
+
+    private static bool IsFieldAccess(ushort opCode)
+        => opCode is OpByteCodes.LDFLD
+            or OpByteCodes.LDFLDA
+            or OpByteCodes.LDSFLD
+            or OpByteCodes.LDSFLDA
+            or OpByteCodes.STFLD
+            or OpByteCodes.STSFLD;
+
+    private static void Internal_ReplaceFieldAccess<TReplacer>(Method self, TReplacer replacer, List<Instruction> pooledList)
+    where TReplacer : IFieldAccessReplacer, allows ref struct
+    {
+        int i = 0;
+        while (i < self.Instructions.Count)
+        {
+            ref readonly var current = ref self.Instructions.AsSpan()[i];
+
+            var opCode = (ushort)current.OpCode.Value;
+            if (!IsFieldAccess(opCode))
+            {
+                i++;
+                continue;
+            }
+
+            var field = (FieldInfo)current._operand!;
+
+            pooledList.Clear();
+            bool shouldReplace = opCode switch
+            {
+                OpByteCodes.LDFLD or OpByteCodes.LDSFLD
+                    => replacer.ReplaceLoad(self, field, pooledList),
+                OpByteCodes.LDFLDA or OpByteCodes.LDSFLDA
+                    => replacer.ReplaceLoadAddress(self, field, pooledList),
+                OpByteCodes.STFLD or OpByteCodes.STSFLD
+                    => replacer.ReplaceStore(self, field, pooledList),
+                _ => false,
+            };
+            if (shouldReplace)
+            {
+                self.Instructions.InsertRange(i, 1, pooledList);
+                i += pooledList.Count;
+                continue;
+            }
+
+            i++;
+        }
+    }
+
+    private readonly ref struct FieldAccessReplacer<TReplacer>(TReplacer replacer) : IFieldAccessReplacer
+    where TReplacer : ISimpleFieldAccessReplacer, allows ref struct
+    {
+
+        private readonly TReplacer _replacer = replacer;
+
+        bool IFieldAccessReplacer.ReplaceLoad(Method method, FieldInfo field, List<Instruction> result)
+        {
+            var replacement = _replacer.ReplaceField(method, field);
+            if (replacement is null)
+                return false;
+            result.Add(Instruction.LoadField(replacement));
+            return true;
+        }
+
+        bool IFieldAccessReplacer.ReplaceLoadAddress(Method method, FieldInfo field, List<Instruction> result)
+        {
+            var replacement = _replacer.ReplaceField(method, field);
+            if (replacement is null)
+                return false;
+            result.Add(Instruction.LoadFieldAddress(replacement));
+            return true;
+        }
+
+        bool IFieldAccessReplacer.ReplaceStore(Method method, FieldInfo field, List<Instruction> result)
+        {
+            var replacement = _replacer.ReplaceField(method, field);
+            if (replacement is null)
+                return false;
+            result.Add(Instruction.StoreField(replacement));
+            return true;
+        }
+
+    }
+
+    private readonly struct SimpleFieldAccessReplacer(FieldAccessReplacerFunc func) : ISimpleFieldAccessReplacer
+    {
+        private readonly FieldAccessReplacerFunc _func = func;
+
+        FieldInfo? ISimpleFieldAccessReplacer.ReplaceField(Method method, FieldInfo field)
+            => _func(method, field);
+
+        public static implicit operator SimpleFieldAccessReplacer(FieldAccessReplacerFunc func) => new(func);
     }
 
 }
@@ -151,5 +268,23 @@ public interface IConstrainedCallReplacer
 {
 
     bool ReplaceCall(Method method, Type callType, MethodInfo callMethod, List<Instruction> result);
+
+}
+
+public interface IFieldAccessReplacer
+{
+
+    bool ReplaceLoad(Method method, FieldInfo field, List<Instruction> result);
+
+    bool ReplaceLoadAddress(Method method, FieldInfo field, List<Instruction> result);
+
+    bool ReplaceStore(Method method, FieldInfo field, List<Instruction> result);
+
+}
+
+public interface ISimpleFieldAccessReplacer
+{
+
+    FieldInfo? ReplaceField(Method method, FieldInfo field);
 
 }

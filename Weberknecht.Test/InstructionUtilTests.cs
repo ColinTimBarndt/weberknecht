@@ -82,4 +82,33 @@ public sealed class InstructionUtilTests
 
     }
 
+    [TestMethod]
+    public void ReplaceFieldAccess()
+    {
+        var getInt = typeof(TestClass).GetMethod(nameof(TestClass.GetInt));
+        Assert.IsNotNull(getInt);
+
+        var method = Method.Read(getInt);
+
+        var x = typeof(TestClass).GetField(nameof(TestClass.x));
+        var z = typeof(TestClass).GetField(nameof(TestClass.z));
+
+        method.ReplaceFieldAccessSimple((_, field) => field == x ? z : null);
+
+        var dynMethod = method.CreateDynamicMethod("GetMyInt");
+        var getMyInt = dynMethod.CreateDelegate<Func<int>>(new TestClass());
+        Assert.AreEqual(5, getMyInt());
+    }
+
+    private sealed class TestClass()
+    {
+
+        public static readonly int x = 1;
+        public readonly int y = 2;
+        public static readonly int z = 3;
+
+        public int GetInt() => x + y;
+
+    }
+
 }
