@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Reflection.Emit;
 
 namespace Weberknecht;
@@ -7,7 +8,7 @@ public partial class Method
 
     public readonly partial struct InstructionCollection
     {
-        
+
         public void InsertMethodBody(int index, int replaceLength, Method method, LabelMap<Label> labels)
         {
             var methodInstrs = method.Instructions.AsSpan();
@@ -36,6 +37,11 @@ public partial class Method
                         break;
 
                     case OperandType.InlineSwitch:
+                        var jumpTable = (ImmutableArray<Label>)instr._operand!;
+                        var newJumpTable = ImmutableArray.CreateBuilder<Label>(jumpTable.Length);
+                        foreach (var target in jumpTable)
+                            newJumpTable.Add(labels[target]);
+                        instr._operand = newJumpTable.ToImmutable();
                         break;
                 }
                 continue;
