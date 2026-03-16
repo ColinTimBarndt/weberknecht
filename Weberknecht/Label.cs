@@ -86,12 +86,9 @@ public readonly ref struct LabelMap<TValue>(Span<TValue> map)
 
     private readonly Span<TValue> _span = map;
 
-    public TValue this[Label label]
-    {
-        get => _span[label.Id - 1];
+    public ref TValue this[Label label] => ref _span[label.Id - 1];
 
-        set => _span[label.Id - 1] = value;
-    }
+    public int Length => _span.Length;
 
     public (TValue, TValue) this[LabelRange range] => (this[range.Start], this[range.End]);
 

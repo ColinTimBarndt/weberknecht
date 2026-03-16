@@ -11,6 +11,9 @@ public partial class Method
 
         public void InsertMethodBody(int index, int replaceLength, Method method, LabelMap<Label> labels)
         {
+            if (labels.Length < method.LabelCount)
+                throw new ArgumentException("not enough capacity for method", nameof(labels));
+
             var methodInstrs = method.Instructions.AsSpan();
             InsertRangeUnchecked(index, replaceLength, methodInstrs);
 
