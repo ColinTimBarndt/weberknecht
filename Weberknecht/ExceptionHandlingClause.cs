@@ -7,6 +7,7 @@ using Weberknecht.Metadata;
 namespace Weberknecht;
 
 using Options = ExceptionHandlingClauseOptions;
+using LabelAddressMap = LabelMap<int>;
 
 public readonly struct ExceptionHandlingClause
 {

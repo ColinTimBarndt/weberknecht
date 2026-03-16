@@ -4,6 +4,8 @@ using System.Reflection.Emit;
 
 namespace Weberknecht;
 
+using LabelAddressMap = LabelMap<int>;
+
 internal static class ExecutionFlowAnalyzer
 {
 
@@ -63,8 +65,7 @@ internal static class ExecutionFlowAnalyzer
         LabelAddressMap labelTargets,
         StackStack<int> work,
         Span<int> stackSize,
-        int returnSize
-        )
+        int returnSize)
     {
         StackSizeResult result;
         int index = 0;
@@ -81,7 +82,7 @@ internal static class ExecutionFlowAnalyzer
             switch (opcode.FlowControl)
             {
                 case FlowControl.Branch:
-                    target = labelTargets[(Label)instruction._uoperand.@int];
+                    target = labelTargets[instruction._uoperand.label];
                     if ((result = SetStackSize(stackSize, index = target, newSize)).IsError)
                         return result;
                     if (result.IsZero)
@@ -112,7 +113,7 @@ internal static class ExecutionFlowAnalyzer
                     {
                         case OperandType.InlineBrTarget:
                         case OperandType.ShortInlineBrTarget:
-                            target = labelTargets[(Label)instruction._uoperand.@int];
+                            target = labelTargets[instruction._uoperand.label];
                             if ((result = SetStackSize(stackSize, target, newSize)).IsError)
                                 return result;
                             if (result.IsZero)

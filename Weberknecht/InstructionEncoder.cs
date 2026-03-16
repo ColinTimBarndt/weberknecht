@@ -6,6 +6,8 @@ using Weberknecht.Metadata;
 
 namespace Weberknecht;
 
+using LabelAddressMap = LabelMap<int>;
+
 internal ref struct InstructionEncoder<T>(Span<byte> buffer, T tokens)
 where T : ITokenSource
 {

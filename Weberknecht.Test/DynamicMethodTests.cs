@@ -4,6 +4,8 @@ using Weberknecht.Metadata;
 
 namespace Weberknecht.Test;
 
+using LabelAddressMap = LabelMap<int>;
+
 [TestClass]
 public sealed class DynamicMethodTests
 {

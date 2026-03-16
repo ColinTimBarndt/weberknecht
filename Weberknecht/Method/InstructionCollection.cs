@@ -12,7 +12,9 @@ public partial class Method
 
         public Method Method { get; }
 
-        public ReadOnlySpan<Instruction> AsSpan() => CollectionsMarshal.AsSpan(Method._instructions);
+        public ReadOnlySpan<Instruction> AsSpan() => AsMutableSpan();
+
+        private Span<Instruction> AsMutableSpan() => CollectionsMarshal.AsSpan(Method._instructions);
 
         public int Count => Method._instructions.Count;
 

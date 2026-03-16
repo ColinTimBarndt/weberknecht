@@ -8,6 +8,7 @@ using Weberknecht.Metadata;
 namespace Weberknecht;
 
 using RLabel = System.Reflection.Emit.Label;
+using LabelAddressMap = LabelMap<int>;
 
 public partial class Method(Type returnType)
 {
@@ -117,6 +118,8 @@ public partial class Method(Type returnType)
         In,
         Out,
     }
+
+    public Label CreateLabel() => new(LabelCount++);
 
     public MethodBuilder DefineMethod(ModuleBuilder module, string name, MethodAttributes attributes)
     {
