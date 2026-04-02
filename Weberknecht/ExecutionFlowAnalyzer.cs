@@ -98,6 +98,14 @@ internal static class ExecutionFlowAnalyzer
                     continue;
 
                 case FlowControl.Call:
+                    if (opcode == OpCodes.Jmp)
+                    {
+                        // JMP passes execution onto the target method
+                        // Arguments are inherited, the stack must be empty
+                        if (newSize != 1 /* 1 = empty, 0 = absent */)
+                            goto Error;
+                        continue;
+                    }
                     var methodBase = (MethodBase)instruction._operand!;
                     var callingConv = methodBase.CallingConvention;
                     bool hasThis = callingConv.HasFlag(CallingConventions.HasThis);

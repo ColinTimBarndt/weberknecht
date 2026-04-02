@@ -1,10 +1,30 @@
-using System.Reflection;
-
 namespace Weberknecht.Test;
 
 [TestClass]
 public sealed class InstructionUtilTests
 {
+
+    [TestMethod]
+    public void ReplaceReturns()
+    {
+        var method = Method.Read((int a, int b) => a > 5 ? a + b : a * b);
+
+        method.ReplaceReturns((_, result) =>
+        {
+            result.AddRange(
+                Instruction.Load(42),
+                Instruction.Add(),
+                Instruction.Return()
+            );
+            return true;
+        });
+
+        var dynMethod = method.CreateDynamicMethod("MulAdd42");
+        var specialMul = dynMethod.CreateDelegate<Func<int, int, int>>();
+        Assert.AreEqual(50, specialMul(4, 2)); // 4 * 2 + 42
+        Assert.AreEqual(50, specialMul(6, 2)); // 6 + 2 + 42
+        Assert.AreEqual(42, specialMul(0, -1));
+    }
 
     [TestMethod]
     public void ReplaceCalls()

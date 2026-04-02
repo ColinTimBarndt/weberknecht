@@ -2,6 +2,7 @@ using System.Reflection;
 
 namespace Weberknecht;
 
+using ReturnReplacerFunc = Func<Method, List<Instruction>, bool>;
 using ConstrainedCallReplacerFunc = Func<Method, Type, MethodInfo, List<Instruction>, bool>;
 using CallReplacerFunc = Func<Method, MethodInfo, List<Instruction>, bool>;
 using FieldAccessReplacerFunc = Func<Method, FieldInfo, FieldInfo?>;
@@ -11,6 +12,22 @@ public static class InstructionUtil
 
     extension(Method self)
     {
+
+        // Returns
+
+        public void ReplaceReturns(ReturnReplacerFunc replacer)
+            => Internal_ReplaceReturns<ReturnReplacer>(self, replacer, []);
+
+        public void ReplaceReturns(ReturnReplacerFunc replacer, List<Instruction> pooledList)
+            => Internal_ReplaceReturns<ReturnReplacer>(self, replacer, pooledList);
+
+        public void ReplaceReturns<TReplacer>(TReplacer replacer)
+        where TReplacer : IReturnReplacer, allows ref struct
+            => Internal_ReplaceReturns(self, replacer, []);
+
+        public void ReplaceReturns<TReplacer>(TReplacer replacer, List<Instruction> pooledList)
+        where TReplacer : IReturnReplacer, allows ref struct
+            => Internal_ReplaceReturns(self, replacer, pooledList);
 
         // Calls
 
@@ -67,6 +84,59 @@ public static class InstructionUtil
         public void ReplaceFieldAccessSimple<TReplacer>(TReplacer replacer, List<Instruction> pooledList)
         where TReplacer : ISimpleFieldAccessReplacer, allows ref struct
             => Internal_ReplaceFieldAccess<FieldAccessReplacer<TReplacer>>(self, new(replacer), pooledList);
+
+    }
+
+    private static void Internal_ReplaceReturns<TReplacer>(Method self, TReplacer replacer, List<Instruction> pooledList)
+    where TReplacer : IReturnReplacer, allows ref struct
+    {
+        int i = 0;
+        while (i < self.Instructions.Count)
+        {
+            ref readonly var current = ref self.Instructions.AsSpan()[i];
+
+            bool replace;
+            switch ((ushort)current.OpCode.Value)
+            {
+                case OpByteCodes.RET:
+                    pooledList.Clear();
+                    replace = replacer.ReplaceReturn(self, pooledList);
+                    break;
+
+                case OpByteCodes.JMP:
+                    var target = (MethodInfo)current._operand!;
+                    pooledList.Clear();
+                    replace = replacer.ReplaceJump(self, target, pooledList);
+                    break;
+
+                default:
+                    i++;
+                    continue;
+            }
+
+            if (replace)
+            {
+                self.Instructions.InsertRange(i, 1, pooledList);
+                i += pooledList.Count;
+                continue;
+            }
+
+            i++;
+        }
+    }
+
+    private readonly struct ReturnReplacer(ReturnReplacerFunc func) : IReturnReplacer
+    {
+
+        private readonly ReturnReplacerFunc _func = func;
+
+        public bool ReplaceReturn(Method method, List<Instruction> result)
+            => _func(method, result);
+
+        public bool ReplaceJump(Method method, MethodInfo targetMethod, List<Instruction> result)
+            => throw new NotSupportedException("JMP instructions are not supported");
+
+        public static implicit operator ReturnReplacer(ReturnReplacerFunc func) => new(func);
 
     }
 
@@ -254,6 +324,15 @@ public static class InstructionUtil
 
         public static implicit operator SimpleFieldAccessReplacer(FieldAccessReplacerFunc func) => new(func);
     }
+
+}
+
+public interface IReturnReplacer
+{
+
+    bool ReplaceReturn(Method method, List<Instruction> result);
+
+    bool ReplaceJump(Method method, MethodInfo targetMethod, List<Instruction> result);
 
 }
 

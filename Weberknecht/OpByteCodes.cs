@@ -37,6 +37,7 @@ internal static class OpByteCodes
         LDC_I4_8 = 0x1E,
         LDC_I4_S = 0x1F,
         // LDC_I4 = 0x20,
+        JMP = 0x27,
         CALL = 0x28,
         RET = 0x2A,
         BR_S = 0x2B,

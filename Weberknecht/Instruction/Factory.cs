@@ -282,4 +282,8 @@ public partial struct Instruction
 
     public static Instruction Return() => new(OpCodes.Ret);
 
+    public static Instruction Jump(Delegate method) => Jump(method.Method);
+
+    public static Instruction Jump(MethodInfo method) => new(OpCodes.Jmp, method);
+
 }
