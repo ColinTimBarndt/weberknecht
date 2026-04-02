@@ -119,7 +119,7 @@ public partial class Method(Type returnType)
         Out,
     }
 
-    public Label CreateLabel() => new(LabelCount++);
+    public Label CreateLabel() => new(++LabelCount);
 
     public MethodBuilder DefineMethod(ModuleBuilder module, string name, MethodAttributes attributes)
     {

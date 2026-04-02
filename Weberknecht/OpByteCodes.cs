@@ -63,6 +63,9 @@ internal static class OpByteCodes
         STSFLD = 0x80,
         ENDFINALLY = 0xDC,
         LEAVE_S = 0xDE,
+        LDLOC = 0xFE0C,
+        LDLOCA = 0xFE0D,
+        STLOC = 0xFE0E,
         ENDFILTER = 0xFE11,
         CONSTRAINED = 0xFE16;
 

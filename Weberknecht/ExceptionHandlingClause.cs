@@ -31,7 +31,7 @@ public readonly struct ExceptionHandlingClause
         FilterStart = filterStart;
     }
 
-    public override readonly string ToString() => Flags switch
+    public override string ToString() => Flags switch
     {
         Options.Clause => $".try {Try} catch {Exception!.Name} handler {Handler}",
         Options.Filter => $".try {Try} filter {FilterStart} handler {Handler}",
@@ -39,6 +39,24 @@ public readonly struct ExceptionHandlingClause
         Options.Fault => $".try {Try} fault handler {Handler}",
         _ => ".try <unknown>",
     };
+
+    public ExceptionHandlingClause Map(LabelMap<Label> map)
+        => Flags switch
+        {
+            Options.Clause
+                => Clause(Exception!, map[Try], map[Handler]),
+
+            Options.Filter
+                => Filter(map[FilterStart], map[Try], map[Handler]),
+
+            Options.Finally
+                => Finally(map[Try], map[Handler]),
+
+            Options.Fault
+                => Fault(map[Try], map[Handler]),
+
+            _ => throw new NotImplementedException(Enum.GetName(Flags)),
+        };
 
     public static ExceptionHandlingClause Clause(Type exception, LabelRange @try, LabelRange handler)
         => new(Options.Clause, exception, @try, handler, default);

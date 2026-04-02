@@ -199,32 +199,59 @@ public partial struct Instruction
 
     public static Instruction Load(double value) => new(OpCodes.Ldc_R8, value);
 
-    public static Instruction LoadArgument(ushort index)
+    private static Instruction VarInstruction(ushort index, ReadOnlySpan<OpCode> opDirect, OpCode opShort, OpCode opFull)
     {
         if ((index & ~0xff) == 0)
         {
             byte shortIndex = (byte)index;
-            var opCode = shortIndex switch
-            {
-                0 => OpCodes.Ldarg_0,
-                1 => OpCodes.Ldarg_1,
-                2 => OpCodes.Ldarg_2,
-                3 => OpCodes.Ldarg_3,
-                _ => OpCodes.Ldarg_S,
-            };
-            if (opCode == OpCodes.Ldarg_S)
-                return new(opCode, shortIndex);
-            return new(opCode);
+            if (shortIndex < opDirect.Length)
+                return new(opDirect[shortIndex]);
+            return new(opShort, shortIndex);
         }
-        return new(OpCodes.Ldarg, index);
+        return new(opFull, index);
     }
 
+    public static Instruction LoadArgument(ushort index)
+        => VarInstruction(
+            index,
+            [OpCodes.Ldarg_0, OpCodes.Ldarg_1, OpCodes.Ldarg_2, OpCodes.Ldarg_3],
+            OpCodes.Ldarg_S,
+            OpCodes.Ldarg);
+
+    public static Instruction StoreArgument(ushort index)
+        => VarInstruction(
+            index,
+            [],
+            OpCodes.Starg_S,
+            OpCodes.Starg);
+
+    public static Instruction LoadLocal(ushort index)
+        => VarInstruction(
+            index,
+            [OpCodes.Ldloc_0, OpCodes.Ldloc_1, OpCodes.Ldloc_2, OpCodes.Ldloc_3],
+            OpCodes.Ldloc_S,
+            OpCodes.Ldloc);
+
+    public static Instruction StoreLocal(ushort index)
+        => VarInstruction(
+            index,
+            [OpCodes.Stloc_0, OpCodes.Stloc_1, OpCodes.Stloc_2, OpCodes.Stloc_3],
+            OpCodes.Stloc_S,
+            OpCodes.Stloc);
+
     public static Instruction LoadArgumentAddress(ushort index)
-    {
-        if ((index & ~0xff) == 0)
-            return new(OpCodes.Ldarga_S, (byte)index);
-        return new(OpCodes.Ldarga, index);
-    }
+        => VarInstruction(
+            index,
+            [],
+            OpCodes.Ldarga_S,
+            OpCodes.Ldarga);
+
+    public static Instruction LoadLocalAddress(ushort index)
+        => VarInstruction(
+            index,
+            [],
+            OpCodes.Ldloca_S,
+            OpCodes.Ldloca);
 
     public static Instruction LoadNull() => new(OpCodes.Ldnull);
 
