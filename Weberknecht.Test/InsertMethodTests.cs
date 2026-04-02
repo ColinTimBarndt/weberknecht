@@ -104,7 +104,7 @@ public sealed class InsertMethodTests
         }
     }
 
-    private class TestException(int value) : Exception
+    private sealed class TestException(int value) : Exception
     {
         public int value = value;
     }
